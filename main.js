@@ -55,6 +55,17 @@ function saveDbRuntimeConfig(userDataPath, config) {
   fs.writeFileSync(configPath, JSON.stringify(safeConfig, null, 2), "utf-8");
 }
 
+function backupBrokenDbRuntimeConfig(userDataPath) {
+  const configPath = getDbRuntimeConfigPath(userDataPath);
+  if (!fs.existsSync(configPath)) return;
+  try {
+    const backupPath = `${configPath}.broken-${Date.now()}.json`;
+    fs.copyFileSync(configPath, backupPath);
+  } catch (_error) {
+    // Ignore backup failures; startup fallback should still proceed.
+  }
+}
+
 function createMainWindow() {
   if (mainWindow) return;
   mainWindow = new BrowserWindow({
@@ -579,20 +590,39 @@ function registerDatabaseIpcHandlers() {
   ipcMain.handle("app:install-update", async () => runtimeInstallUpdate());
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   const userDataPath = app.getPath("userData");
   const runtimeDbConfig = loadDbRuntimeConfig(userDataPath);
-  dbService = new DatabaseService(userDataPath, runtimeDbConfig);
-  dbService
-    .init()
-    .then(() => {
-      registerDatabaseIpcHandlers();
-      setupAutoUpdateFlow();
-    })
-    .catch((error) => {
-      console.error("DB init failed:", error);
-      app.quit();
-    });
+
+  const initDatabaseWithFallback = async () => {
+    dbService = new DatabaseService(userDataPath, runtimeDbConfig);
+    try {
+      await dbService.init();
+      return;
+    } catch (error) {
+      const isRemoteMode = runtimeDbConfig.mode === "remote";
+      if (!isRemoteMode) {
+        throw error;
+      }
+
+      console.error("Remote DB init failed, fallback to SQLite:", error);
+      backupBrokenDbRuntimeConfig(userDataPath);
+      saveDbRuntimeConfig(userDataPath, { mode: "local" });
+
+      dbService = new DatabaseService(userDataPath, { mode: "local" });
+      await dbService.init();
+    }
+  };
+
+  try {
+    await initDatabaseWithFallback();
+    registerDatabaseIpcHandlers();
+    setupAutoUpdateFlow();
+  } catch (error) {
+    console.error("DB init failed:", error);
+    app.quit();
+  }
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length !== 0) return;
     if (app.isPackaged && !updateInProgress) {
