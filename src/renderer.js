@@ -39,6 +39,15 @@ const state = {
     provider: "sqlite",
     sqlitePath: "-"
   },
+  dbRuntimeStatus: {
+    mode: "local",
+    connected: true,
+    interacting: false,
+    operation: "",
+    message: "SQLite: подключена",
+    sqlitePath: "",
+    sqliteFileName: "teachaxo.sqlite"
+  },
   roles: [],
   users: [],
   currentUserId: null,
@@ -54,7 +63,8 @@ const state = {
   runtimeUpdate: {
     state: "idle",
     message: "Проверка обновлений не выполнялась.",
-    availableVersion: null
+    availableVersion: null,
+    progress: null
   },
   updatePromptedVersion: null,
   searchQuery: "",
@@ -63,6 +73,16 @@ const state = {
 
 const dayOrder = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 const VERSION_CHANGELOG = {
+  "1.0.22": {
+    added: [
+      "Гибкий changelog в настройках: категории Добавлено/Изменено/Убрано и история по версиям."
+    ],
+    changed: [
+      "Убрано legacy-хранение через localStorage, сохранение состояния только в выбранной БД.",
+      "Переключение источника данных теперь переносит текущее состояние в целевую БД до перезапуска."
+    ],
+    removed: []
+  },
   "1.0.21": {
     added: [
       "Безопасный fallback: при недоступной удаленной БД приложение автоматически переключается на SQLite при запуске."
@@ -101,6 +121,22 @@ const VERSION_CHANGELOG = {
     removed: []
   }
 };
+
+function compareSemverDesc(a, b) {
+  const pa = String(a).split(".").map(Number);
+  const pb = String(b).split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const diff = (pb[i] || 0) - (pa[i] || 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+function resolveCurrentChangelogEntry(version) {
+  if (VERSION_CHANGELOG[version]) return VERSION_CHANGELOG[version];
+  const sortedVersions = Object.keys(VERSION_CHANGELOG).sort(compareSemverDesc);
+  return VERSION_CHANGELOG[sortedVersions[0]] || { added: [], changed: [], removed: [] };
+}
 
 function uid() {
   return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -508,11 +544,7 @@ function renderSettingsPage() {
   document.getElementById("home-current-version").textContent = versionLabel;
 
   const currentVersionKey = normalizeVersionValue(state.appMeta.appVersion, "0.0.0");
-  const currentChangeEntry = VERSION_CHANGELOG[currentVersionKey] || {
-    added: [],
-    changed: [],
-    removed: []
-  };
+  const currentChangeEntry = resolveCurrentChangelogEntry(currentVersionKey);
   const renderCategory = (items) =>
     items.length ? items.map((item) => `<li>${escapeHtml(item)}</li>`).join("") : "<li>—</li>";
 
@@ -520,15 +552,7 @@ function renderSettingsPage() {
   document.getElementById("current-version-changed").innerHTML = renderCategory(currentChangeEntry.changed);
   document.getElementById("current-version-removed").innerHTML = renderCategory(currentChangeEntry.removed);
 
-  const sortedVersions = Object.keys(VERSION_CHANGELOG).sort((a, b) => {
-    const pa = a.split(".").map(Number);
-    const pb = b.split(".").map(Number);
-    for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
-      const diff = (pb[i] || 0) - (pa[i] || 0);
-      if (diff !== 0) return diff;
-    }
-    return 0;
-  });
+  const sortedVersions = Object.keys(VERSION_CHANGELOG).sort(compareSemverDesc);
   document.getElementById("version-history-log").innerHTML = sortedVersions
     .map((version) => {
       const entry = VERSION_CHANGELOG[version];
@@ -601,16 +625,38 @@ function renderUsers() {
 }
 
 function renderStatusBar() {
-  const dbProvider = String(state.storageInfo.provider || "sqlite").toUpperCase();
+  const dbProvider = String(state.storageInfo.provider || "sqlite").toLowerCase();
   const dbPath = state.storageInfo.sqlitePath || "-";
+  const dbNameNode = document.getElementById("statusbar-db-name");
   const dbStateNode = document.getElementById("statusbar-db-state");
+  if (dbNameNode) {
+    const fileName = state.dbRuntimeStatus.sqliteFileName || (dbPath !== "-" ? dbPath.split(/[\\/]/).pop() : "teachaxo.sqlite");
+    dbNameNode.textContent = fileName;
+    const isLocal = dbProvider === "sqlite" || state.dbRuntimeStatus.mode === "local";
+    dbNameNode.disabled = !isLocal;
+    dbNameNode.title = isLocal ? "Открыть папку с базой данных" : "Для удаленной БД открытие файла недоступно";
+  }
   if (dbStateNode) {
-    dbStateNode.textContent = `${dbProvider}: ${dbPath}`;
+    const prefix = dbProvider === "mysql" || state.dbRuntimeStatus.mode === "remote" ? "Remote DB" : "SQLite";
+    const connection = state.dbRuntimeStatus.connected ? "подключена" : "нет подключения";
+    const activity = state.dbRuntimeStatus.interacting
+      ? ` • выполняется: ${state.dbRuntimeStatus.operation || "операция"}`
+      : "";
+    dbStateNode.textContent = `${prefix}: ${connection}${activity}`;
   }
 
   const updateStateNode = document.getElementById("statusbar-update-state");
   if (updateStateNode) {
     updateStateNode.textContent = state.runtimeUpdate.message || "Проверка обновлений не выполнялась.";
+  }
+
+  const progressWrap = document.getElementById("statusbar-download-progress");
+  const progressFill = document.getElementById("statusbar-download-progress-fill");
+  if (progressWrap && progressFill) {
+    const isDownloading = state.runtimeUpdate.state === "downloading";
+    const progressValue = Math.max(0, Math.min(100, Math.round(Number(state.runtimeUpdate.progress || 0))));
+    progressWrap.classList.toggle("hidden", !isDownloading);
+    progressFill.style.width = `${progressValue}%`;
   }
 
   const installButton = document.getElementById("statusbar-install-update");
@@ -1069,12 +1115,14 @@ function setupDatabaseSettingsHandlers() {
 function setupStatusBarHandlers() {
   const checkButton = document.getElementById("statusbar-check-updates");
   const installButton = document.getElementById("statusbar-install-update");
+  const dbNameButton = document.getElementById("statusbar-db-name");
 
   const applyUpdateStatus = (payload) => {
     state.runtimeUpdate = {
       state: payload?.state || "idle",
       message: payload?.message || "Проверка обновлений не выполнялась.",
-      availableVersion: payload?.availableVersion || null
+      availableVersion: payload?.availableVersion || null,
+      progress: typeof payload?.progress === "number" ? payload.progress : null
     };
     renderStatusBar();
 
@@ -1100,6 +1148,38 @@ function setupStatusBarHandlers() {
 
   if (window.teachAxo?.onUpdateStatus) {
     window.teachAxo.onUpdateStatus((payload) => applyUpdateStatus(payload));
+  }
+
+  const applyDbStatus = (payload) => {
+    if (!payload || typeof payload !== "object") return;
+    state.dbRuntimeStatus = {
+      mode: payload.mode || "local",
+      connected: payload.connected !== false,
+      interacting: Boolean(payload.interacting),
+      operation: payload.operation || "",
+      message: payload.message || "",
+      sqlitePath: payload.sqlitePath || state.storageInfo.sqlitePath || "",
+      sqliteFileName: payload.sqliteFileName || "teachaxo.sqlite"
+    };
+    renderStatusBar();
+  };
+
+  if (window.teachAxoDb?.onStatus) {
+    window.teachAxoDb.onStatus((payload) => applyDbStatus(payload));
+  }
+
+  window.teachAxoDb?.getStatus?.().then((payload) => applyDbStatus(payload)).catch(() => {});
+
+  if (dbNameButton) {
+    dbNameButton.addEventListener("click", async () => {
+      const isLocal = String(state.storageInfo.provider || "sqlite").toLowerCase() === "sqlite" || state.dbRuntimeStatus.mode === "local";
+      if (!isLocal || !window.teachAxoDb?.openSqliteLocation) return;
+      try {
+        await window.teachAxoDb.openSqliteLocation();
+      } catch (error) {
+        alert(`Не удалось открыть папку базы данных: ${error.message}`);
+      }
+    });
   }
 
   if (checkButton) {
@@ -1143,6 +1223,49 @@ function setupStatusBarHandlers() {
       } finally {
         installButton.disabled = false;
       }
+    });
+  }
+}
+
+function setupWindowControls() {
+  const minimizeBtn = document.getElementById("window-minimize");
+  const maximizeBtn = document.getElementById("window-maximize");
+  const closeBtn = document.getElementById("window-close");
+
+  const updateMaximizeIcon = (isMaximized) => {
+    if (!maximizeBtn) return;
+    maximizeBtn.textContent = isMaximized ? "❐" : "□";
+    maximizeBtn.title = isMaximized ? "Восстановить" : "Развернуть";
+  };
+
+  window.teachAxo?.isWindowMaximized?.()
+    .then((payload) => updateMaximizeIcon(Boolean(payload?.isMaximized)))
+    .catch(() => {});
+
+  if (window.teachAxo?.onWindowState) {
+    window.teachAxo.onWindowState((payload) => {
+      updateMaximizeIcon(Boolean(payload?.isMaximized));
+    });
+  }
+
+  if (minimizeBtn) {
+    minimizeBtn.addEventListener("click", () => {
+      window.teachAxo?.minimizeWindow?.().catch(() => {});
+    });
+  }
+
+  if (maximizeBtn) {
+    maximizeBtn.addEventListener("click", async () => {
+      try {
+        const response = await window.teachAxo?.toggleMaximizeWindow?.();
+        updateMaximizeIcon(Boolean(response?.isMaximized));
+      } catch (_error) {}
+    });
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      window.teachAxo?.closeWindow?.().catch(() => {});
     });
   }
 }
@@ -1285,7 +1408,8 @@ async function init() {
       state.runtimeUpdate = {
         state: updateStatus.state || "idle",
         message: updateStatus.message || "Проверка обновлений не выполнялась.",
-        availableVersion: updateStatus.availableVersion || null
+        availableVersion: updateStatus.availableVersion || null,
+        progress: typeof updateStatus.progress === "number" ? updateStatus.progress : null
       };
     }
   } catch (error) {
@@ -1299,6 +1423,7 @@ async function init() {
   state.students.forEach((student) => ensureClassExists(student.className));
   saveState();
   setupNav();
+  setupWindowControls();
   setupClassesHandlers();
   setupStudentHandlers();
   setupGradesHandlers();

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const path = require("path");
 const fs = require("node:fs");
 const https = require("node:https");
@@ -24,6 +24,16 @@ let cachedUpdateStatus = {
 let runtimeCheckForUpdates = async () => cachedUpdateStatus;
 let runtimeInstallUpdate = async () => ({ ok: false, message: "Обновление недоступно." });
 const DB_RUNTIME_CONFIG_FILE = "db-runtime-config.json";
+let dbHealthTimer = null;
+let cachedDbStatus = {
+  mode: "local",
+  connected: true,
+  interacting: false,
+  operation: "",
+  message: "SQLite: готово",
+  sqlitePath: "",
+  sqliteFileName: "teachaxo.sqlite"
+};
 
 function getDbRuntimeConfigPath(userDataPath) {
   return path.join(userDataPath, DB_RUNTIME_CONFIG_FILE);
@@ -74,6 +84,7 @@ function createMainWindow() {
     minWidth: 1200,
     minHeight: 760,
     title: "TeachAxo",
+    frame: false,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -85,6 +96,16 @@ function createMainWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+
+  const emitWindowState = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send("window:state", {
+      isMaximized: mainWindow.isMaximized()
+    });
+  };
+  mainWindow.on("maximize", emitWindowState);
+  mainWindow.on("unmaximize", emitWindowState);
+  mainWindow.webContents.on("did-finish-load", emitWindowState);
 
   mainWindow.loadFile(path.join(__dirname, "src", "index.html"));
   mainWindow.maximize();
@@ -124,6 +145,76 @@ function sendMainUpdateStatus(payload) {
   mainWindow.webContents.send("app:update-status", cachedUpdateStatus);
 }
 
+function sendMainDbStatus(payload) {
+  cachedDbStatus = { ...cachedDbStatus, ...payload };
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send("app:db-status", cachedDbStatus);
+}
+
+function deriveSqliteFileName(sqlitePath) {
+  if (!sqlitePath) return "teachaxo.sqlite";
+  return path.basename(sqlitePath);
+}
+
+async function refreshDbConnectionStatus() {
+  if (!dbService) return;
+  const info = dbService.getInfo();
+  const isRemote = info.provider === "mysql";
+  if (!isRemote) {
+    sendMainDbStatus({
+      mode: "local",
+      connected: true,
+      message: "SQLite: подключена",
+      sqlitePath: info.sqlitePath || "",
+      sqliteFileName: deriveSqliteFileName(info.sqlitePath || "")
+    });
+    return;
+  }
+  try {
+    await dbService.ping();
+    sendMainDbStatus({
+      mode: "remote",
+      connected: true,
+      message: `Remote DB: подключена (${info.remoteHost || "host"})`,
+      sqlitePath: info.sqlitePath || "",
+      sqliteFileName: deriveSqliteFileName(info.sqlitePath || "")
+    });
+  } catch (error) {
+    sendMainDbStatus({
+      mode: "remote",
+      connected: false,
+      message: `Remote DB: нет подключения (${error.message})`,
+      sqlitePath: info.sqlitePath || "",
+      sqliteFileName: deriveSqliteFileName(info.sqlitePath || "")
+    });
+  }
+}
+
+async function withDbActivity(operationName, fn) {
+  sendMainDbStatus({
+    interacting: true,
+    operation: operationName,
+    message: `${cachedDbStatus.mode === "remote" ? "Remote DB" : "SQLite"}: выполняется ${operationName}`
+  });
+  try {
+    const result = await fn();
+    return result;
+  } finally {
+    sendMainDbStatus({
+      interacting: false,
+      operation: ""
+    });
+    await refreshDbConnectionStatus();
+  }
+}
+
+function startDbHealthMonitor() {
+  if (dbHealthTimer) clearInterval(dbHealthTimer);
+  dbHealthTimer = setInterval(() => {
+    refreshDbConnectionStatus().catch(() => {});
+  }, 15000);
+}
+
 function openMainAndCloseUpdater() {
   if (updaterWindow && !updaterWindow.isDestroyed()) {
     updaterWindow.close();
@@ -132,6 +223,7 @@ function openMainAndCloseUpdater() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.once("did-finish-load", () => {
       sendMainUpdateStatus(cachedUpdateStatus);
+      sendMainDbStatus(cachedDbStatus);
     });
   }
 }
@@ -527,25 +619,49 @@ function setupAutoUpdateFlow() {
 }
 
 function registerDatabaseIpcHandlers() {
+  ipcMain.handle("window:minimize", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { ok: false };
+    mainWindow.minimize();
+    return { ok: true };
+  });
+
+  ipcMain.handle("window:toggle-maximize", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, isMaximized: false };
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    else mainWindow.maximize();
+    return { ok: true, isMaximized: mainWindow.isMaximized() };
+  });
+
+  ipcMain.handle("window:close", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { ok: false };
+    mainWindow.close();
+    return { ok: true };
+  });
+
+  ipcMain.handle("window:is-maximized", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { isMaximized: false };
+    return { isMaximized: mainWindow.isMaximized() };
+  });
+
   ipcMain.handle("db:get-state", async () => {
-    const raw = await dbService.getStateAsync();
+    const raw = await withDbActivity("чтение данных", async () => dbService.getStateAsync());
     return raw ? JSON.parse(raw) : null;
   });
 
   ipcMain.handle("db:save-state", async (_event, state) => {
-    await dbService.setStateAsync(state || {});
+    await withDbActivity("сохранение данных", async () => dbService.setStateAsync(state || {}));
     return { ok: true };
   });
 
   ipcMain.handle("db:get-info", async () => dbService.getInfo());
 
   ipcMain.handle("db:migrate-mysql", async (_event, config) => {
-    await dbService.migrateToMysql(config || {});
+    await withDbActivity("миграция в MySQL", async () => dbService.migrateToMysql(config || {}));
     return { ok: true };
   });
 
   ipcMain.handle("db:test-mysql", async (_event, config) => {
-    await dbService.testMysqlConnection(config || {});
+    await withDbActivity("проверка подключения", async () => dbService.testMysqlConnection(config || {}));
     return { ok: true };
   });
 
@@ -557,18 +673,18 @@ function registerDatabaseIpcHandlers() {
 
     // Migrate current app state into target storage before relaunch,
     // so data always lives in the selected backend (SQLite or MySQL).
-    const currentStateRaw = await dbService.getStateAsync();
+    const currentStateRaw = await withDbActivity("чтение состояния", async () => dbService.getStateAsync());
     const currentState = currentStateRaw ? JSON.parse(currentStateRaw) : {};
 
     if (safeConfig.mode === "remote") {
       await dbService.testMysqlConnection(safeConfig);
       const remoteService = new DatabaseService(app.getPath("userData"), safeConfig);
-      await remoteService.init();
-      await remoteService.setStateAsync(currentState);
+      await withDbActivity("инициализация удаленной БД", async () => remoteService.init());
+      await withDbActivity("запись в удаленную БД", async () => remoteService.setStateAsync(currentState));
     } else {
       const localService = new DatabaseService(app.getPath("userData"), { mode: "local" });
-      await localService.init();
-      await localService.setStateAsync(currentState);
+      await withDbActivity("инициализация SQLite", async () => localService.init());
+      await withDbActivity("запись в SQLite", async () => localService.setStateAsync(currentState));
     }
 
     saveDbRuntimeConfig(app.getPath("userData"), safeConfig);
@@ -576,6 +692,19 @@ function registerDatabaseIpcHandlers() {
       app.relaunch();
       app.exit(0);
     }, 100);
+    return { ok: true };
+  });
+
+  ipcMain.handle("db:get-status", async () => {
+    await refreshDbConnectionStatus();
+    return cachedDbStatus;
+  });
+
+  ipcMain.handle("db:open-sqlite-location", async () => {
+    const info = dbService.getInfo();
+    const targetPath = info.sqlitePath;
+    if (!targetPath) return { ok: false, message: "Путь к SQLite не найден." };
+    shell.showItemInFolder(targetPath);
     return { ok: true };
   });
 
@@ -630,6 +759,8 @@ app.whenReady().then(async () => {
 
   try {
     await initDatabaseWithFallback();
+    await refreshDbConnectionStatus();
+    startDbHealthMonitor();
     registerDatabaseIpcHandlers();
     setupAutoUpdateFlow();
   } catch (error) {

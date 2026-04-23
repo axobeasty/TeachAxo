@@ -33,6 +33,16 @@
     </div>
 
     <div class="app-shell hidden" id="app-shell">
+      <div class="window-titlebar">
+        <div class="window-titlebar-drag">
+          <span class="window-title">TeachAxo</span>
+        </div>
+        <div class="window-controls">
+          <button id="window-minimize" class="window-control-btn" type="button" title="Свернуть">—</button>
+          <button id="window-maximize" class="window-control-btn" type="button" title="Развернуть">□</button>
+          <button id="window-close" class="window-control-btn close" type="button" title="Закрыть">×</button>
+        </div>
+      </div>
       <div class="app-header">
         <div class="app-header-brand">
           <h1 class="ui header">
@@ -606,10 +616,16 @@
       <div class="app-statusbar" id="app-statusbar">
         <div class="app-statusbar-left">
           <span class="label">База данных:</span>
+          <button id="statusbar-db-name" class="statusbar-db-link" type="button">teachaxo.sqlite</button>
           <span id="statusbar-db-state">SQLite: подключена</span>
         </div>
         <div class="app-statusbar-right">
-          <span id="statusbar-update-state">Проверка обновлений не выполнялась.</span>
+          <div class="statusbar-update-block">
+            <span id="statusbar-update-state">Проверка обновлений не выполнялась.</span>
+            <div id="statusbar-download-progress" class="statusbar-progress hidden">
+              <div id="statusbar-download-progress-fill" class="statusbar-progress-fill"></div>
+            </div>
+          </div>
           <button id="statusbar-check-updates" class="ui tiny button" type="button">Проверить</button>
           <button id="statusbar-install-update" class="ui tiny primary button hidden" type="button">Обновить</button>
         </div>

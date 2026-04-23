@@ -279,6 +279,29 @@ class DatabaseService {
       sqlitePath: this.sqlitePath
     };
   }
+
+  async ping() {
+    if (this.runtimeConfig.mode !== "remote") {
+      return { ok: true };
+    }
+    const remote = this.remoteConfig || this.normalizeRemoteConfig({ mode: "remote", remote: this.runtimeConfig.remote });
+    let connection;
+    try {
+      connection = await mysql.createConnection({
+        host: remote.host,
+        port: remote.port,
+        user: remote.user,
+        password: remote.password,
+        database: remote.database
+      });
+      await connection.query("SELECT 1");
+      return { ok: true };
+    } catch (error) {
+      throw this.formatMysqlError(error, remote);
+    } finally {
+      if (connection) await connection.end();
+    }
+  }
 }
 
 module.exports = { DatabaseService };
