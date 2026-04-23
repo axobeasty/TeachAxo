@@ -529,8 +529,8 @@ function setupScheduleHandlers() {
     const day = document.getElementById("schedule-day").value;
     const lessonNumber = Number(lessonNumberInput.value);
     const timeRange = calculateLessonTime(lessonNumber);
-    const start = timeRange?.start || "";
-    const end = timeRange?.end || "";
+    const start = startInput.value || timeRange?.start || "";
+    const end = endInput.value || timeRange?.end || "";
     const className = document.getElementById("schedule-class").value.trim();
     const subject = document.getElementById("schedule-subject").value.trim();
     const room = document.getElementById("schedule-room").value.trim();
