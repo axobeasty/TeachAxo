@@ -31,7 +31,7 @@ const state = {
     localName: "teachaxo_local.db",
     remote: {
       host: "",
-      port: "5432",
+      port: "3306",
       user: "",
       password: "",
       database: ""
@@ -157,7 +157,7 @@ function applyLoadedState(parsed) {
     localName: parsed.databaseConfig?.localName || "teachaxo_local.db",
     remote: {
       host: parsed.databaseConfig?.remote?.host || "",
-      port: parsed.databaseConfig?.remote?.port || "5432",
+      port: parsed.databaseConfig?.remote?.port || "3306",
       user: parsed.databaseConfig?.remote?.user || "",
       password: parsed.databaseConfig?.remote?.password || "",
       database: parsed.databaseConfig?.remote?.database || ""
@@ -868,6 +868,20 @@ function setupDatabaseSettingsHandlers() {
   const remoteFields = document.getElementById("database-remote-fields");
   const status = document.getElementById("database-settings-status");
   const migrateButton = document.getElementById("database-migrate-button");
+  const testConnectionButton = document.getElementById("database-test-connection-button");
+
+  const buildDatabaseConfigFromForm = () => {
+    const mode = modeSelect.value === "remote" ? "remote" : "local";
+    const localName = document.getElementById("database-local-name").value.trim() || "teachaxo_local.db";
+    const remote = {
+      host: document.getElementById("database-remote-host").value.trim(),
+      port: document.getElementById("database-remote-port").value.trim() || "3306",
+      user: document.getElementById("database-remote-user").value.trim(),
+      password: document.getElementById("database-remote-password").value,
+      database: document.getElementById("database-remote-name").value.trim()
+    };
+    return { mode, localName, remote };
+  };
 
   modeSelect.addEventListener("change", () => {
     const isRemote = modeSelect.value === "remote";
@@ -877,15 +891,7 @@ function setupDatabaseSettingsHandlers() {
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    const mode = modeSelect.value === "remote" ? "remote" : "local";
-    const localName = document.getElementById("database-local-name").value.trim() || "teachaxo_local.db";
-    const remote = {
-      host: document.getElementById("database-remote-host").value.trim(),
-      port: document.getElementById("database-remote-port").value.trim(),
-      user: document.getElementById("database-remote-user").value.trim(),
-      password: document.getElementById("database-remote-password").value,
-      database: document.getElementById("database-remote-name").value.trim()
-    };
+    const { mode, localName, remote } = buildDatabaseConfigFromForm();
 
     if (mode === "remote" && (!remote.host || !remote.port || !remote.user || !remote.database)) {
       status.textContent = "Для удаленной базы заполните host, port, пользователя и имя БД.";
@@ -902,14 +908,38 @@ function setupDatabaseSettingsHandlers() {
     status.className = "ui tiny positive message";
   });
 
+  testConnectionButton.addEventListener("click", async () => {
+    try {
+      if (!window.teachAxoDb?.testMysqlConnection) {
+        throw new Error("Сервис проверки подключения к БД недоступен.");
+      }
+      const config = buildDatabaseConfigFromForm();
+      if (config.mode !== "remote") {
+        throw new Error("Для проверки выберите режим удаленной БД.");
+      }
+      status.textContent = "Проверяем подключение к MySQL...";
+      status.className = "ui tiny info message";
+      await window.teachAxoDb.testMysqlConnection(config);
+      status.textContent = "Подключение к MySQL успешно установлено.";
+      status.className = "ui tiny positive message";
+    } catch (error) {
+      status.textContent = `Ошибка подключения: ${error.message}`;
+      status.className = "ui tiny red message";
+    }
+  });
+
   migrateButton.addEventListener("click", async () => {
     try {
       if (!window.teachAxoDb?.migrateToMysql) {
         throw new Error("Сервис миграции БД недоступен.");
       }
+      const config = buildDatabaseConfigFromForm();
+      if (config.mode !== "remote") {
+        throw new Error("Для миграции выберите режим удаленной БД.");
+      }
       status.textContent = "Выполняем миграцию данных в MySQL...";
       status.className = "ui tiny info message";
-      await window.teachAxoDb.migrateToMysql(state.databaseConfig);
+      await window.teachAxoDb.migrateToMysql(config);
       status.textContent = "Миграция в MySQL успешно завершена.";
       status.className = "ui tiny positive message";
     } catch (error) {

@@ -462,6 +462,11 @@ function registerDatabaseIpcHandlers() {
     return { ok: true };
   });
 
+  ipcMain.handle("db:test-mysql", async (_event, config) => {
+    await dbService.testMysqlConnection(config || {});
+    return { ok: true };
+  });
+
   ipcMain.handle("app:get-meta", async () => {
     // app.getVersion() is the most reliable source in packaged builds.
     const appVersion = app.getVersion() || "0.0.0";

@@ -62,7 +62,7 @@ class DatabaseService {
     this.persist();
   }
 
-  async migrateToMysql(config) {
+  normalizeRemoteConfig(config) {
     const mode = config?.mode;
     if (mode !== "remote") {
       throw new Error("Для миграции в MySQL выберите режим удаленной БД.");
@@ -73,13 +73,60 @@ class DatabaseService {
     if (missing.length) {
       throw new Error(`Не заполнены обязательные поля: ${missing.join(", ")}`);
     }
-
-    const connection = await mysql.createConnection({
-      host: remote.host,
+    return {
+      host: String(remote.host).trim(),
       port: Number(remote.port),
-      user: remote.user,
-      password: remote.password || ""
-    });
+      user: String(remote.user).trim(),
+      password: remote.password || "",
+      database: String(remote.database).trim()
+    };
+  }
+
+  formatMysqlError(error, remote) {
+    if (error?.code === "ECONNREFUSED") {
+      return new Error(
+        `Сервер MySQL недоступен по адресу ${remote.host}:${remote.port}. Проверьте host/port (обычно MySQL использует 3306), firewall и доступность сервера.`
+      );
+    }
+    if (error?.code === "ER_ACCESS_DENIED_ERROR") {
+      return new Error("Неверные логин или пароль для подключения к MySQL.");
+    }
+    return error;
+  }
+
+  async testMysqlConnection(config) {
+    const remote = this.normalizeRemoteConfig(config);
+    let connection;
+    try {
+      connection = await mysql.createConnection({
+        host: remote.host,
+        port: remote.port,
+        user: remote.user,
+        password: remote.password
+      });
+      await connection.query("SELECT 1");
+      return { ok: true };
+    } catch (error) {
+      throw this.formatMysqlError(error, remote);
+    } finally {
+      if (connection) await connection.end();
+    }
+  }
+
+  async migrateToMysql(config) {
+    const remote = this.normalizeRemoteConfig(config);
+
+    let connection;
+    try {
+      connection = await mysql.createConnection({
+        host: remote.host,
+        port: remote.port,
+        user: remote.user,
+        password: remote.password
+      });
+    } catch (error) {
+      throw this.formatMysqlError(error, remote);
+    }
 
     try {
       await connection.query(`CREATE DATABASE IF NOT EXISTS \`${remote.database}\``);
@@ -97,6 +144,8 @@ class DatabaseService {
          ON DUPLICATE KEY UPDATE value_json = VALUES(value_json), updated_at = VALUES(updated_at)`,
         [STATE_KEY, stateJson]
       );
+    } catch (error) {
+      throw this.formatMysqlError(error, remote);
     } finally {
       await connection.end();
     }
