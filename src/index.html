@@ -26,36 +26,42 @@
       </div>
     </div>
 
-    <div class="ui container app-shell hidden" id="app-shell">
-      <div class="ui clearing segment app-header">
-        <h1 class="ui left floated header">
-          <i class="chalkboard teacher icon"></i>
-          <div class="content">
-            TeachAxo
-            <div class="sub header">Учет учеников, оценок и расписания</div>
-          </div>
-        </h1>
-        <div class="ui right floated basic label">
-          Версия: <span id="app-version">1.0.0</span>
+    <div class="app-shell hidden" id="app-shell">
+      <div class="app-header">
+        <div class="app-header-brand">
+          <h1 class="ui header">
+            <i class="chalkboard teacher icon"></i>
+            <div class="content">
+              TeachAxo
+              <div class="sub header">Учет учеников, оценок и расписания</div>
+            </div>
+          </h1>
         </div>
-        <div class="ui right floated basic label">
-          Пользователь: <span id="current-user-label">-</span>
+        <div class="app-header-meta">
+          <div class="ui basic label">Версия: <span id="app-version">1.0.0</span></div>
+          <div class="ui basic label">Пользователь: <span id="current-user-label">-</span></div>
+          <button id="logout-button" class="ui basic button">
+            <i class="sign-out alternate icon"></i> Выйти
+          </button>
         </div>
-        <button id="logout-button" class="ui right floated basic button">
-          <i class="sign-out alternate icon"></i> Выйти
-        </button>
       </div>
 
-      <div class="ui top attached tabular menu">
-        <a class="active item nav-item" data-section="home">Главное меню</a>
-        <a class="item nav-item" data-section="classes">Классы</a>
-        <a class="item nav-item" data-section="students">Ученики</a>
-        <a class="item nav-item" data-section="grades">Оценки</a>
-        <a class="item nav-item" data-section="schedule">Расписание</a>
-        <a class="item nav-item" data-section="access">Доступ</a>
-      </div>
+      <div class="app-layout">
+        <aside class="app-sidebar">
+          <div class="app-sidebar-title">Навигация</div>
+          <nav class="app-sidebar-nav">
+            <a class="nav-item active" data-section="home"><i class="home icon"></i>Дашборд</a>
+            <a class="nav-item" data-section="classes"><i class="building icon"></i>Классы</a>
+            <a class="nav-item" data-section="students"><i class="users icon"></i>Ученики</a>
+            <a class="nav-item" data-section="grades"><i class="clipboard check icon"></i>Оценки</a>
+            <a class="nav-item" data-section="schedule"><i class="calendar alternate icon"></i>Расписание</a>
+            <a class="nav-item" data-section="access"><i class="shield alternate icon"></i>Доступ</a>
+            <a class="nav-item" data-section="settings"><i class="cog icon"></i>Настройки</a>
+          </nav>
+        </aside>
 
-      <div class="ui bottom attached segment section active" data-section-panel="home">
+        <main class="app-content">
+          <section class="section page-card active" data-section-panel="home">
         <div class="home-hero ui segment">
           <div class="home-hero-title">Панель преподавателя</div>
           <div class="home-hero-subtitle" id="home-hero-subtitle">
@@ -129,9 +135,9 @@
             </div>
           </div>
         </div>
-      </div>
+          </section>
 
-      <div class="ui bottom attached segment section" data-section-panel="classes">
+          <section class="section page-card" data-section-panel="classes">
         <div class="ui stackable grid">
           <div class="six wide column">
             <h3 class="ui header">Добавить класс</h3>
@@ -168,9 +174,9 @@
             </div>
           </div>
         </div>
-      </div>
+          </section>
 
-      <div class="ui bottom attached segment section" data-section-panel="students">
+          <section class="section page-card" data-section-panel="students">
         <div class="ui stackable grid">
           <div class="six wide column">
             <h3 class="ui header">Новый ученик</h3>
@@ -236,9 +242,9 @@
             </div>
           </div>
         </div>
-      </div>
+          </section>
 
-      <div class="ui bottom attached segment section" data-section-panel="grades">
+          <section class="section page-card" data-section-panel="grades">
         <div class="ui stackable grid">
           <div class="six wide column">
             <h3 class="ui header">Поставить оценку</h3>
@@ -289,9 +295,9 @@
             </div>
           </div>
         </div>
-      </div>
+          </section>
 
-      <div class="ui bottom attached segment section" data-section-panel="schedule">
+          <section class="section page-card" data-section-panel="schedule">
         <div class="ui stackable grid">
           <div class="six wide column">
             <h3 class="ui header">Конструктор расписания</h3>
@@ -389,9 +395,9 @@
             </div>
           </div>
         </div>
-      </div>
+          </section>
 
-      <div class="ui bottom attached segment section" data-section-panel="access">
+          <section class="section page-card" data-section-panel="access">
         <div class="ui stackable grid">
           <div class="eight wide column">
             <h3 class="ui header">Роли и права</h3>
@@ -455,6 +461,36 @@
             </div>
           </div>
         </div>
+          </section>
+
+          <section class="section page-card" data-section-panel="settings">
+            <h2 class="ui header">Настройки</h2>
+            <div class="ui two stackable cards">
+              <div class="card">
+                <div class="content">
+                  <div class="header">Информация о приложении</div>
+                  <div class="description">
+                    <p>Текущая версия: <strong id="settings-app-version">-</strong></p>
+                    <p>Сборка: <strong id="settings-build-version">-</strong></p>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="content">
+                  <div class="header">Профиль сессии</div>
+                  <div class="description">
+                    <p>Текущий пользователь: <strong id="settings-current-user">-</strong></p>
+                    <p>Роль: <strong id="settings-current-role">-</strong></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="ui info message">
+              Здесь отображаются системные параметры интерфейса. Управление расписанием и доступом выполняется на
+              соответствующих страницах.
+            </div>
+          </section>
+        </main>
       </div>
     </div>
 

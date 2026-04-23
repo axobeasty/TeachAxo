@@ -90,7 +90,7 @@ function hasPermission(permission) {
 }
 
 function canAccessSection(section) {
-  if (section === "home") return true;
+  if (section === "home" || section === "settings") return true;
   if (section === "access") return hasPermission("manage_roles") || hasPermission("manage_users");
   return hasPermission(SECTION_PERMISSIONS[section] ?? "");
 }
@@ -377,6 +377,18 @@ function renderHomeDashboard() {
     .join("");
 }
 
+function renderSettingsPage() {
+  const currentUser = getCurrentUser();
+  const currentRole = currentUser ? getRole(currentUser.roleId) : null;
+  const appVersion = window.teachAxo?.appVersion || "-";
+  const buildVersion = window.teachAxo?.buildVersion || appVersion;
+
+  document.getElementById("settings-app-version").textContent = appVersion;
+  document.getElementById("settings-build-version").textContent = buildVersion;
+  document.getElementById("settings-current-user").textContent = currentUser?.username || "-";
+  document.getElementById("settings-current-role").textContent = currentRole?.name || "Без роли";
+}
+
 function renderRoles() {
   const tbody = document.getElementById("roles-table-body");
   tbody.innerHTML = state.roles
@@ -417,6 +429,7 @@ function renderAll() {
   renderSchedule();
   renderHomeSchedule();
   renderHomeDashboard();
+  renderSettingsPage();
   renderRoles();
   renderUsers();
   applyAccessControl();
