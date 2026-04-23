@@ -553,7 +553,11 @@ function renderSchedule() {
         <td>${escapeHtml(entry.subject)}</td>
         <td>${escapeHtml(entry.room || "-")}</td>
         <td>${escapeHtml(entry.notes || "-")}</td>
-        <td><button class="ui mini red button" data-delete-schedule="${entry.id}">Удалить</button></td>
+        <td class="schedule-td-actions">
+          <div class="schedule-row-actions">
+            <button type="button" class="ui mini red button" data-delete-schedule="${entry.id}">Удалить</button>
+          </div>
+        </td>
       </tr>`
     )
     .join("");
