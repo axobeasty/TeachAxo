@@ -412,6 +412,7 @@
           <div class="eight wide column" id="access-roles-column">
             <h3 class="ui header">Роли и права</h3>
             <form id="role-form" class="ui form">
+              <input type="hidden" id="role-editing-id" value="" />
               <div class="field">
                 <label>Название роли</label>
                 <input type="text" id="role-name" required placeholder="Преподаватель" />
@@ -434,7 +435,10 @@
                 <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_appearance" /><label>Внешний вид приложения (иконка)</label></div></div>
                 <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_updates" /><label>Проверка и установка обновлений</label></div></div>
               </div>
-              <button class="ui primary button" type="submit">Создать роль</button>
+              <div class="field">
+                <button class="ui primary button" type="submit" id="role-form-submit">Создать роль</button>
+                <button class="ui button hidden" type="button" id="role-form-cancel">Отмена</button>
+              </div>
             </form>
             <table class="ui celled compact table">
               <thead>

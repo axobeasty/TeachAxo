@@ -729,15 +729,64 @@ function renderProfilePage() {
   }
 }
 
+function clearRoleForm() {
+  const form = document.getElementById("role-form");
+  const hidden = document.getElementById("role-editing-id");
+  const cancelBtn = document.getElementById("role-form-cancel");
+  const submitBtn = document.getElementById("role-form-submit");
+  const nameInput = document.getElementById("role-name");
+  if (hidden) hidden.value = "";
+  if (form) form.reset();
+  document.querySelectorAll(".role-permission").forEach((el) => {
+    el.checked = false;
+  });
+  if (nameInput) {
+    nameInput.removeAttribute("readonly");
+    nameInput.disabled = false;
+  }
+  if (submitBtn) submitBtn.textContent = "Создать роль";
+  if (cancelBtn) cancelBtn.classList.add("hidden");
+}
+
+function fillRoleForm(role) {
+  if (!role) return;
+  const hidden = document.getElementById("role-editing-id");
+  const nameInput = document.getElementById("role-name");
+  const cancelBtn = document.getElementById("role-form-cancel");
+  const submitBtn = document.getElementById("role-form-submit");
+  if (hidden) hidden.value = role.id;
+  if (nameInput) nameInput.value = role.name;
+  document.querySelectorAll(".role-permission").forEach((el) => {
+    el.checked = Array.isArray(role.permissions) && role.permissions.includes(el.value);
+  });
+  if (nameInput) {
+    if (role.isSystem) {
+      nameInput.setAttribute("readonly", "readonly");
+    } else {
+      nameInput.removeAttribute("readonly");
+    }
+  }
+  if (submitBtn) submitBtn.textContent = "Сохранить изменения";
+  if (cancelBtn) cancelBtn.classList.remove("hidden");
+}
+
 function renderRoles() {
   const tbody = document.getElementById("roles-table-body");
   tbody.innerHTML = state.roles
     .map((role) => `<tr>
-      <td>${escapeHtml(role.name)}</td>
+      <td>${escapeHtml(role.name)}${role.isSystem ? " <span class=\"ui mini label\">системная</span>" : ""}</td>
       <td>${role.permissions.map((p) => escapeHtml(PERMISSIONS[p] || p)).join(", ") || "-"}</td>
-      <td><button class="ui mini red button" data-delete-role="${role.id}">Удалить</button></td>
+      <td>
+        <button type="button" class="ui mini button" data-edit-role="${role.id}">Изменить</button>
+        <button type="button" class="ui mini red button" data-delete-role="${role.id}">Удалить</button>
+      </td>
     </tr>`)
     .join("");
+
+  const editingId = document.getElementById("role-editing-id")?.value;
+  if (editingId && !state.roles.some((r) => r.id === editingId)) {
+    clearRoleForm();
+  }
 }
 
 function renderUsers() {
@@ -1098,24 +1147,63 @@ function setupScheduleHandlers() {
 }
 
 function setupAccessHandlers() {
+  document.getElementById("role-form-cancel").addEventListener("click", () => {
+    if (!hasPermission("manage_roles")) return;
+    clearRoleForm();
+  });
+
   document.getElementById("role-form").addEventListener("submit", (event) => {
     event.preventDefault();
     if (!requirePermission("manage_roles")) return;
-    const roleName = document.getElementById("role-name").value.trim();
+    const editingId = document.getElementById("role-editing-id").value.trim();
+    const roleNameRaw = document.getElementById("role-name").value.trim();
     const permissions = [...document.querySelectorAll(".role-permission:checked")].map((el) => el.value);
-    if (!roleName) return;
-    if (state.roles.some((role) => role.name.toLowerCase() === roleName.toLowerCase())) {
+
+    if (editingId) {
+      const role = getRole(editingId);
+      if (!role) {
+        clearRoleForm();
+        return;
+      }
+      const newName = role.isSystem ? role.name : roleNameRaw;
+      if (!newName) {
+        notifyUser("Укажите название роли.", "warning");
+        return;
+      }
+      if (!role.isSystem) {
+        if (state.roles.some((r) => r.id !== editingId && r.name.toLowerCase() === roleNameRaw.toLowerCase())) {
+          notifyUser("Роль с таким названием уже существует.", "warning");
+          return;
+        }
+        role.name = roleNameRaw;
+      }
+      role.permissions = permissions;
+      saveState();
+      clearRoleForm();
+      renderAll();
+      notifyUser("Роль сохранена.", "success");
+      return;
+    }
+
+    if (!roleNameRaw) return;
+    if (state.roles.some((role) => role.name.toLowerCase() === roleNameRaw.toLowerCase())) {
       notifyUser("Роль с таким названием уже существует.", "warning");
       return;
     }
-    state.roles.push({ id: uid(), name: roleName, permissions, isSystem: false });
-    document.getElementById("role-form").reset();
+    state.roles.push({ id: uid(), name: roleNameRaw, permissions, isSystem: false });
+    clearRoleForm();
     saveState();
     renderAll();
   });
 
   document.getElementById("roles-table-body").addEventListener("click", (event) => {
     if (!requirePermission("manage_roles")) return;
+    const editId = event.target.dataset.editRole;
+    if (editId) {
+      const role = getRole(editId);
+      if (role) fillRoleForm(role);
+      return;
+    }
     const roleId = event.target.dataset.deleteRole;
     if (!roleId) return;
     const role = getRole(roleId);
