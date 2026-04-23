@@ -1,10 +1,12 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const { autoUpdater } = require("electron-updater");
+const { DatabaseService } = require("./database");
 
 let mainWindow = null;
 let updaterWindow = null;
 let updateInProgress = false;
+let dbService = null;
 
 function createMainWindow() {
   if (mainWindow) return;
@@ -160,8 +162,37 @@ function setupAutoUpdateFlow() {
   });
 }
 
+function registerDatabaseIpcHandlers() {
+  ipcMain.handle("db:get-state", async () => {
+    const raw = dbService.getState();
+    return raw ? JSON.parse(raw) : null;
+  });
+
+  ipcMain.handle("db:save-state", async (_event, state) => {
+    dbService.setState(state || {});
+    return { ok: true };
+  });
+
+  ipcMain.handle("db:get-info", async () => dbService.getInfo());
+
+  ipcMain.handle("db:migrate-mysql", async (_event, config) => {
+    await dbService.migrateToMysql(config || {});
+    return { ok: true };
+  });
+}
+
 app.whenReady().then(() => {
-  setupAutoUpdateFlow();
+  dbService = new DatabaseService(app.getPath("userData"));
+  dbService
+    .init()
+    .then(() => {
+      registerDatabaseIpcHandlers();
+      setupAutoUpdateFlow();
+    })
+    .catch((error) => {
+      console.error("DB init failed:", error);
+      app.quit();
+    });
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length !== 0) return;
     if (app.isPackaged && !updateInProgress) {

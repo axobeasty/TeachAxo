@@ -1,6 +1,6 @@
 {
   "name": "teachaxo",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Desktop app for student records, grading, and schedule management.",
   "main": "main.js",
   "scripts": {
@@ -16,7 +16,9 @@
   "license": "MIT",
   "dependencies": {
     "electron-updater": "^6.3.9",
-    "semantic-ui-css": "^2.5.0"
+    "mysql2": "^3.22.2",
+    "semantic-ui-css": "^2.5.0",
+    "sql.js": "^1.14.1"
   },
   "devDependencies": {
     "electron": "^31.0.2",
@@ -25,7 +27,7 @@
   "build": {
     "appId": "com.teachaxo.app",
     "productName": "TeachAxo",
-    "buildVersion": "1.0.7.0",
+    "buildVersion": "1.0.8.0",
     "directories": {
       "output": "dist"
     },

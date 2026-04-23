@@ -37,6 +37,10 @@ const state = {
       database: ""
     }
   },
+  storageInfo: {
+    provider: "sqlite",
+    sqlitePath: "-"
+  },
   roles: [],
   users: [],
   currentUserId: null,
@@ -106,53 +110,69 @@ function canAccessSection(section) {
   return hasPermission(SECTION_PERMISSIONS[section] ?? "");
 }
 
-function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return;
+function applyLoadedState(parsed) {
+  if (!parsed) return;
+  state.classes = Array.isArray(parsed.classes) ? parsed.classes : [];
+  state.students = Array.isArray(parsed.students) ? parsed.students : [];
+  state.grades = Array.isArray(parsed.grades) ? parsed.grades : [];
+  state.schedule = Array.isArray(parsed.schedule) ? parsed.schedule : [];
+  state.scheduleSettings = {
+    firstLessonStart: parsed.scheduleSettings?.firstLessonStart || "08:00",
+    lessonDurationMin: Number(parsed.scheduleSettings?.lessonDurationMin) || 45
+  };
+  state.databaseConfig = {
+    mode: parsed.databaseConfig?.mode === "remote" ? "remote" : "local",
+    localName: parsed.databaseConfig?.localName || "teachaxo_local.db",
+    remote: {
+      host: parsed.databaseConfig?.remote?.host || "",
+      port: parsed.databaseConfig?.remote?.port || "5432",
+      user: parsed.databaseConfig?.remote?.user || "",
+      password: parsed.databaseConfig?.remote?.password || "",
+      database: parsed.databaseConfig?.remote?.database || ""
+    }
+  };
+  state.roles = Array.isArray(parsed.roles) ? parsed.roles : [];
+  state.users = Array.isArray(parsed.users) ? parsed.users : [];
+  state.currentUserId = parsed.currentUserId ?? null;
+}
+
+async function loadState() {
   try {
-    const parsed = JSON.parse(raw);
-    state.classes = Array.isArray(parsed.classes) ? parsed.classes : [];
-    state.students = Array.isArray(parsed.students) ? parsed.students : [];
-    state.grades = Array.isArray(parsed.grades) ? parsed.grades : [];
-    state.schedule = Array.isArray(parsed.schedule) ? parsed.schedule : [];
-    state.scheduleSettings = {
-      firstLessonStart: parsed.scheduleSettings?.firstLessonStart || "08:00",
-      lessonDurationMin: Number(parsed.scheduleSettings?.lessonDurationMin) || 45
-    };
-    state.databaseConfig = {
-      mode: parsed.databaseConfig?.mode === "remote" ? "remote" : "local",
-      localName: parsed.databaseConfig?.localName || "teachaxo_local.db",
-      remote: {
-        host: parsed.databaseConfig?.remote?.host || "",
-        port: parsed.databaseConfig?.remote?.port || "5432",
-        user: parsed.databaseConfig?.remote?.user || "",
-        password: parsed.databaseConfig?.remote?.password || "",
-        database: parsed.databaseConfig?.remote?.database || ""
-      }
-    };
-    state.roles = Array.isArray(parsed.roles) ? parsed.roles : [];
-    state.users = Array.isArray(parsed.users) ? parsed.users : [];
-    state.currentUserId = parsed.currentUserId ?? null;
+    if (window.teachAxoDb?.getState) {
+      const dbState = await window.teachAxoDb.getState();
+      applyLoadedState(dbState);
+      const info = await window.teachAxoDb.getInfo();
+      if (info?.provider) state.storageInfo.provider = info.provider;
+      if (info?.sqlitePath) state.storageInfo.sqlitePath = info.sqlitePath;
+      return;
+    }
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    applyLoadedState(JSON.parse(raw));
   } catch (error) {
     console.error("Не удалось прочитать данные TeachAxo:", error);
   }
 }
 
 function saveState() {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      classes: state.classes,
-      students: state.students,
-      grades: state.grades,
-      schedule: state.schedule,
-      scheduleSettings: state.scheduleSettings,
-      databaseConfig: state.databaseConfig,
-      roles: state.roles,
-      users: state.users,
-      currentUserId: state.currentUserId
-    })
-  );
+  const snapshot = {
+    classes: state.classes,
+    students: state.students,
+    grades: state.grades,
+    schedule: state.schedule,
+    scheduleSettings: state.scheduleSettings,
+    databaseConfig: state.databaseConfig,
+    roles: state.roles,
+    users: state.users,
+    currentUserId: state.currentUserId
+  };
+  if (window.teachAxoDb?.saveState) {
+    window.teachAxoDb.saveState(snapshot).catch((error) => {
+      console.error("Не удалось сохранить данные в SQLite:", error);
+    });
+    return;
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
 }
 
 function seedAccessData() {
@@ -410,6 +430,8 @@ function renderSettingsPage() {
   document.getElementById("settings-build-version").textContent = buildVersion;
   document.getElementById("settings-current-user").textContent = currentUser?.username || "-";
   document.getElementById("settings-current-role").textContent = currentRole?.name || "Без роли";
+  document.getElementById("settings-storage-provider").textContent = String(state.storageInfo.provider || "sqlite").toUpperCase();
+  document.getElementById("settings-sqlite-path").textContent = state.storageInfo.sqlitePath || "-";
 
   document.getElementById("database-mode").value = state.databaseConfig.mode;
   document.getElementById("database-local-name").value = state.databaseConfig.localName;
@@ -744,6 +766,7 @@ function setupDatabaseSettingsHandlers() {
   const localFields = document.getElementById("database-local-fields");
   const remoteFields = document.getElementById("database-remote-fields");
   const status = document.getElementById("database-settings-status");
+  const migrateButton = document.getElementById("database-migrate-button");
 
   modeSelect.addEventListener("change", () => {
     const isRemote = modeSelect.value === "remote";
@@ -776,6 +799,22 @@ function setupDatabaseSettingsHandlers() {
         ? `Локальная база "${localName}" сохранена.`
         : `Параметры удаленной базы ${remote.host}:${remote.port}/${remote.database} сохранены.`;
     status.className = "ui tiny positive message";
+  });
+
+  migrateButton.addEventListener("click", async () => {
+    try {
+      if (!window.teachAxoDb?.migrateToMysql) {
+        throw new Error("Сервис миграции БД недоступен.");
+      }
+      status.textContent = "Выполняем миграцию данных в MySQL...";
+      status.className = "ui tiny info message";
+      await window.teachAxoDb.migrateToMysql(state.databaseConfig);
+      status.textContent = "Миграция в MySQL успешно завершена.";
+      status.className = "ui tiny positive message";
+    } catch (error) {
+      status.textContent = `Ошибка миграции: ${error.message}`;
+      status.className = "ui tiny red message";
+    }
   });
 }
 
@@ -881,14 +920,14 @@ function setupAuthHandlers() {
   else showLogin();
 }
 
-function init() {
+async function init() {
   if (window.teachAxo) {
     const appVersion = window.teachAxo.appVersion || "0.0.0";
     const buildVersion = window.teachAxo.buildVersion || appVersion;
     const versionLabel = buildVersion === appVersion ? appVersion : `${appVersion} (build ${buildVersion})`;
     document.getElementById("app-version").textContent = versionLabel;
   }
-  loadState();
+  await loadState();
   seedAccessData();
   state.students.forEach((student) => ensureClassExists(student.className));
   saveState();
@@ -903,4 +942,6 @@ function init() {
   setupAuthHandlers();
 }
 
-init();
+init().catch((error) => {
+  console.error("Init error:", error);
+});

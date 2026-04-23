@@ -474,6 +474,8 @@
 
             <div class="ui segment">
               <h3 class="ui header">Источник данных</h3>
+              <p>Текущее хранилище: <strong id="settings-storage-provider">SQLite</strong></p>
+              <p>Файл БД: <code id="settings-sqlite-path">-</code></p>
               <form id="database-settings-form" class="ui form">
                 <div class="field">
                   <label>Тип базы данных</label>
@@ -517,6 +519,9 @@
                   </div>
                 </div>
                 <button class="ui primary button" type="submit">Сохранить параметры БД</button>
+                <button class="ui button" id="database-migrate-button" type="button">
+                  Мигрировать текущие данные в MySQL
+                </button>
               </form>
               <div id="database-settings-status" class="ui tiny message hidden"></div>
             </div>
