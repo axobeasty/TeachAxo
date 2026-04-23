@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TeachAxo</title>
+    <link rel="stylesheet" href="../node_modules/semantic-ui-css/semantic.min.css" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="auth-screen" class="auth-screen">
+      <div class="ui raised very padded text container segment auth-card">
+        <h2 class="ui header">Вход в TeachAxo</h2>
+        <form id="login-form" class="ui form">
+          <div class="field">
+            <label>Логин</label>
+            <input id="login-username" type="text" required placeholder="admin" />
+          </div>
+          <div class="field">
+            <label>Пароль</label>
+            <input id="login-password" type="password" required placeholder="admin123" />
+          </div>
+          <button class="ui primary fluid button" type="submit">Войти</button>
+        </form>
+        <div id="login-error" class="ui tiny red message hidden"></div>
+      </div>
+    </div>
+
+    <div class="ui container app-shell hidden" id="app-shell">
+      <div class="ui clearing segment app-header">
+        <h1 class="ui left floated header">
+          <i class="chalkboard teacher icon"></i>
+          <div class="content">
+            TeachAxo
+            <div class="sub header">Учет учеников, оценок и расписания</div>
+          </div>
+        </h1>
+        <div class="ui right floated basic label">
+          Версия: <span id="app-version">1.0.0</span>
+        </div>
+        <div class="ui right floated basic label">
+          Пользователь: <span id="current-user-label">-</span>
+        </div>
+        <button id="logout-button" class="ui right floated basic button">
+          <i class="sign-out alternate icon"></i> Выйти
+        </button>
+      </div>
+
+      <div class="ui top attached tabular menu">
+        <a class="active item nav-item" data-section="home">Главное меню</a>
+        <a class="item nav-item" data-section="classes">Классы</a>
+        <a class="item nav-item" data-section="students">Ученики</a>
+        <a class="item nav-item" data-section="grades">Оценки</a>
+        <a class="item nav-item" data-section="schedule">Расписание</a>
+        <a class="item nav-item" data-section="access">Доступ</a>
+      </div>
+
+      <div class="ui bottom attached segment section active" data-section-panel="home">
+        <h2 class="ui header">Общее меню</h2>
+        <div class="ui four stackable cards quick-nav">
+          <div class="card">
+            <div class="content">
+              <div class="header">Классы</div>
+              <div class="description">Справочник классов и быстрый поиск.</div>
+            </div>
+            <div class="extra content">
+              <button class="ui fluid button quick-nav-button" data-go-section="classes">Открыть</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="content">
+              <div class="header">Ученики</div>
+              <div class="description">Добавление, список и печать.</div>
+            </div>
+            <div class="extra content">
+              <button class="ui fluid button quick-nav-button" data-go-section="students">Открыть</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="content">
+              <div class="header">Оценки</div>
+              <div class="description">Журнал и выставление оценок.</div>
+            </div>
+            <div class="extra content">
+              <button class="ui fluid button quick-nav-button" data-go-section="grades">Открыть</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="content">
+              <div class="header">Расписание</div>
+              <div class="description">Конструктор уроков и печать.</div>
+            </div>
+            <div class="extra content">
+              <button class="ui fluid button quick-nav-button" data-go-section="schedule">Открыть</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui bottom attached segment section" data-section-panel="classes">
+        <div class="ui stackable grid">
+          <div class="six wide column">
+            <h3 class="ui header">Добавить класс</h3>
+            <form id="class-form" class="ui form">
+              <div class="field">
+                <label>Название класса</label>
+                <input type="text" id="class-name" required placeholder="8А" />
+              </div>
+              <div class="field">
+                <label>Примечание</label>
+                <input type="text" id="class-note" placeholder="Классный руководитель, смена и т.д." />
+              </div>
+              <button class="ui primary button" type="submit">Добавить класс</button>
+            </form>
+          </div>
+          <div class="ten wide column">
+            <div class="ui segment">
+              <h3 class="ui header">Список классов</h3>
+              <div class="ui fluid icon input">
+                <input type="text" id="class-search" placeholder="Поиск класса..." />
+                <i class="search icon"></i>
+              </div>
+              <table class="ui celled compact table">
+                <thead>
+                  <tr>
+                    <th>Класс</th>
+                    <th>Примечание</th>
+                    <th>Учеников</th>
+                    <th>Действия</th>
+                  </tr>
+                </thead>
+                <tbody id="classes-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui bottom attached segment section" data-section-panel="students">
+        <div class="ui stackable grid">
+          <div class="six wide column">
+            <h3 class="ui header">Новый ученик</h3>
+            <form id="student-form" class="ui form">
+              <div class="field">
+                <label>ФИО</label>
+                <input type="text" id="student-name" required placeholder="Иванов Иван Иванович" />
+              </div>
+              <div class="field">
+                <label>Класс</label>
+                <input
+                  type="text"
+                  id="student-class"
+                  required
+                  placeholder="Начните вводить название класса"
+                  list="classes-datalist"
+                />
+                <datalist id="classes-datalist"></datalist>
+              </div>
+              <div class="field">
+                <label>Предмет</label>
+                <input type="text" id="student-subject" placeholder="Математика" />
+              </div>
+              <div class="field">
+                <label>Контакты</label>
+                <input type="text" id="student-contact" placeholder="+7..., Telegram, email" />
+              </div>
+              <div class="field">
+                <label>Комментарий</label>
+                <textarea id="student-notes" rows="3"></textarea>
+              </div>
+              <button class="ui primary button" type="submit">Добавить</button>
+            </form>
+          </div>
+          <div class="ten wide column">
+            <div class="ui segment">
+              <div class="ui stackable grid middle aligned">
+                <div class="eight wide column">
+                  <h3 class="ui header">Список учеников</h3>
+                </div>
+                <div class="eight wide column right aligned">
+                  <button id="print-class-list" class="ui button">
+                    <i class="print icon"></i> Печать списка класса
+                  </button>
+                </div>
+              </div>
+              <div class="ui fluid icon input">
+                <input type="text" id="student-search" placeholder="Поиск по ФИО, классу или предмету..." />
+                <i class="search icon"></i>
+              </div>
+              <table class="ui celled striped compact table">
+                <thead>
+                  <tr>
+                    <th>ФИО</th>
+                    <th>Класс</th>
+                    <th>Предмет</th>
+                    <th>Контакты</th>
+                    <th>Действия</th>
+                  </tr>
+                </thead>
+                <tbody id="students-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui bottom attached segment section" data-section-panel="grades">
+        <div class="ui stackable grid">
+          <div class="six wide column">
+            <h3 class="ui header">Поставить оценку</h3>
+            <form id="grade-form" class="ui form">
+              <div class="field">
+                <label>Ученик</label>
+                <select id="grade-student" class="ui dropdown" required></select>
+              </div>
+              <div class="two fields">
+                <div class="field">
+                  <label>Оценка</label>
+                  <select id="grade-value" required>
+                    <option value="">Выберите</option>
+                    <option value="5">5</option>
+                    <option value="4">4</option>
+                    <option value="3">3</option>
+                    <option value="2">2</option>
+                    <option value="1">1</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Дата</label>
+                  <input type="date" id="grade-date" required />
+                </div>
+              </div>
+              <div class="field">
+                <label>Тема/комментарий</label>
+                <input type="text" id="grade-comment" placeholder="Контрольная работа, домашнее задание..." />
+              </div>
+              <button class="ui primary button" type="submit">Сохранить оценку</button>
+            </form>
+          </div>
+          <div class="ten wide column">
+            <div class="ui segment">
+              <h3 class="ui header">Журнал оценок</h3>
+              <table class="ui celled table">
+                <thead>
+                  <tr>
+                    <th>Дата</th>
+                    <th>Ученик</th>
+                    <th>Класс</th>
+                    <th>Оценка</th>
+                    <th>Комментарий</th>
+                  </tr>
+                </thead>
+                <tbody id="grades-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui bottom attached segment section" data-section-panel="schedule">
+        <div class="ui stackable grid">
+          <div class="six wide column">
+            <h3 class="ui header">Конструктор расписания</h3>
+            <form id="schedule-form" class="ui form">
+              <div class="field">
+                <label>День недели</label>
+                <select id="schedule-day" required>
+                  <option value="">Выберите</option>
+                  <option value="Понедельник">Понедельник</option>
+                  <option value="Вторник">Вторник</option>
+                  <option value="Среда">Среда</option>
+                  <option value="Четверг">Четверг</option>
+                  <option value="Пятница">Пятница</option>
+                  <option value="Суббота">Суббота</option>
+                  <option value="Воскресенье">Воскресенье</option>
+                </select>
+              </div>
+              <div class="two fields">
+                <div class="field">
+                  <label>Начало</label>
+                  <input type="time" id="schedule-start" required />
+                </div>
+                <div class="field">
+                  <label>Конец</label>
+                  <input type="time" id="schedule-end" required />
+                </div>
+              </div>
+              <div class="field">
+                <label>Класс</label>
+                <input type="text" id="schedule-class" required placeholder="7Б" />
+              </div>
+              <div class="field">
+                <label>Предмет</label>
+                <input type="text" id="schedule-subject" required placeholder="Алгебра" />
+              </div>
+              <div class="field">
+                <label>Кабинет</label>
+                <input type="text" id="schedule-room" placeholder="301" />
+              </div>
+              <div class="field">
+                <label>Комментарий</label>
+                <input type="text" id="schedule-notes" placeholder="Группа 1, профильный уровень..." />
+              </div>
+              <button class="ui primary button" type="submit">Добавить в расписание</button>
+            </form>
+          </div>
+          <div class="ten wide column">
+            <div class="ui segment">
+              <div class="ui stackable grid middle aligned">
+                <div class="eight wide column">
+                  <h3 class="ui header">Расписание</h3>
+                </div>
+                <div class="eight wide column right aligned">
+                  <button id="print-schedule" class="ui button">
+                    <i class="print icon"></i> Печать расписания
+                  </button>
+                </div>
+              </div>
+              <table class="ui celled striped table">
+                <thead>
+                  <tr>
+                    <th>День</th>
+                    <th>Время</th>
+                    <th>Класс</th>
+                    <th>Предмет</th>
+                    <th>Кабинет</th>
+                    <th>Комментарий</th>
+                    <th>Действия</th>
+                  </tr>
+                </thead>
+                <tbody id="schedule-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui bottom attached segment section" data-section-panel="access">
+        <div class="ui stackable grid">
+          <div class="eight wide column">
+            <h3 class="ui header">Роли и права</h3>
+            <form id="role-form" class="ui form">
+              <div class="field">
+                <label>Название роли</label>
+                <input type="text" id="role-name" required placeholder="Преподаватель" />
+              </div>
+              <div class="grouped fields">
+                <label>Права</label>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_classes" /><label>Управление классами</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_students" /><label>Управление учениками</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_grades" /><label>Управление оценками</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_schedule" /><label>Управление расписанием</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="print_data" /><label>Печать данных</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_roles" /><label>Управление ролями</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_users" /><label>Управление пользователями</label></div></div>
+              </div>
+              <button class="ui primary button" type="submit">Создать роль</button>
+            </form>
+            <table class="ui celled compact table">
+              <thead>
+                <tr>
+                  <th>Роль</th>
+                  <th>Права</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody id="roles-table-body"></tbody>
+            </table>
+          </div>
+          <div class="eight wide column">
+            <h3 class="ui header">Пользователи</h3>
+            <form id="user-form" class="ui form">
+              <div class="field">
+                <label>Логин</label>
+                <input type="text" id="user-username" required placeholder="teacher1" />
+              </div>
+              <div class="field">
+                <label>Пароль</label>
+                <input type="password" id="user-password" required placeholder="Минимум 4 символа" />
+              </div>
+              <div class="field">
+                <label>Роль</label>
+                <select id="user-role" required></select>
+              </div>
+              <button class="ui primary button" type="submit">Создать пользователя</button>
+            </form>
+            <table class="ui celled compact table">
+              <thead>
+                <tr>
+                  <th>Логин</th>
+                  <th>Роль</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody id="users-table-body"></tbody>
+            </table>
+            <div class="ui info message">
+              Тестовый пользователь: <strong>admin</strong> / <strong>admin123</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

@@ -1,0 +1,50 @@
+body {
+  background: #f6f8fb;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  max-width: 460px;
+}
+
+.app-shell {
+  margin-top: 20px;
+  margin-bottom: 30px;
+}
+
+.app-header {
+  margin-bottom: 0;
+}
+
+.section {
+  display: none;
+}
+
+.section.active {
+  display: block;
+}
+
+.ui.table td .ui.mini.button {
+  margin-right: 6px;
+}
+
+.quick-nav .card .description {
+  min-height: 38px;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+}
