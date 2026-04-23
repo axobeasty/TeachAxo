@@ -6,9 +6,25 @@
     <title>TeachAxo - Проверка обновлений</title>
     <link rel="stylesheet" href="../node_modules/semantic-ui-css/semantic.min.css" />
     <style>
-      body {
-        background: #f6f8fb;
+      :root {
+        --bg: #f2f5fb;
+        --surface: #ffffff;
+        --text: #1c2434;
+        --muted: #687387;
+        --primary: #4157ff;
+        --primary-2: #6d3ef3;
+        --border: #e6eaf3;
+        --shadow-lg: 0 14px 30px rgba(27, 39, 71, 0.08);
+        --radius-lg: 14px;
       }
+
+      body {
+        margin: 0;
+        background: radial-gradient(1200px 500px at 20% -10%, #e8edff 0%, #f2f5fb 50%, #edf1f8 100%);
+        color: var(--text);
+        font-family: "Segoe UI", Arial, sans-serif;
+      }
+
       .wrap {
         min-height: 100vh;
         display: flex;
@@ -16,25 +32,67 @@
         justify-content: center;
         padding: 24px;
       }
+
+      .update-card {
+        width: min(540px, 100%);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        box-shadow: var(--shadow-lg);
+        padding: 20px;
+      }
+
+      .update-hero {
+        background: linear-gradient(120deg, #2f4dff 0%, #7344f8 100%);
+        border-radius: 10px;
+        color: #fff;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+      }
+
+      .update-hero .title {
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .update-hero .sub {
+        margin-top: 4px;
+        font-size: 13px;
+        opacity: 0.95;
+      }
+
       .status {
         font-size: 15px;
+        margin-bottom: 10px;
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 8px;
+      }
+
+      .ui.progress {
+        margin-top: 8px !important;
+      }
+
+      .ui.progress .bar {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%) !important;
       }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <div class="ui raised very padded text container segment">
-        <h2 class="ui header">
-          <i class="sync alternate icon"></i>
-          <div class="content">
-            TeachAxo
-            <div class="sub header">Проверка обновлений</div>
-          </div>
-        </h2>
+      <div class="update-card">
+        <div class="update-hero">
+          <div class="title">TeachAxo</div>
+          <div class="sub">Проверка и установка обновлений</div>
+        </div>
         <p id="status-message" class="status">Инициализация...</p>
         <div class="ui tiny indicating progress" id="progress-wrap">
           <div class="bar" id="progress-bar"></div>
         </div>
+        <div class="meta">Окно закроется автоматически после завершения операции.</div>
       </div>
     </div>
 

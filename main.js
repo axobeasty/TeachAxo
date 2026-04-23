@@ -260,7 +260,8 @@ function setupAutoUpdateFlow() {
     }
 
     sendUpdaterStatus("installing", "Запускаем установку обновления...");
-    const child = spawn(installerPath, ["/S"], {
+    // Run installer without silent flag so NSIS can execute standard post-install launch flow.
+    const child = spawn(installerPath, [], {
       detached: true,
       stdio: "ignore"
     });
@@ -346,6 +347,26 @@ function registerDatabaseIpcHandlers() {
   ipcMain.handle("db:migrate-mysql", async (_event, config) => {
     await dbService.migrateToMysql(config || {});
     return { ok: true };
+  });
+
+  ipcMain.handle("app:get-meta", async () => {
+    // app.getVersion() is the most reliable source in packaged builds.
+    const appVersion = app.getVersion() || "0.0.0";
+    let buildVersion = appVersion;
+    try {
+      // Keep buildVersion from package.json when available.
+      const pkg = require("./package.json");
+      if (pkg?.build?.buildVersion) {
+        buildVersion = String(pkg.build.buildVersion);
+      }
+    } catch (_error) {
+      buildVersion = appVersion;
+    }
+    return {
+      appName: app.getName() || "TeachAxo",
+      appVersion: String(appVersion),
+      buildVersion: String(buildVersion)
+    };
   });
 }
 

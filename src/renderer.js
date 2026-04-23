@@ -44,6 +44,15 @@ const state = {
   roles: [],
   users: [],
   currentUserId: null,
+  auth: {
+    rememberSession: false,
+    rememberedUserId: null
+  },
+  appMeta: {
+    appName: "TeachAxo",
+    appVersion: "0.0.0",
+    buildVersion: "0.0.0"
+  },
   searchQuery: "",
   classSearchQuery: ""
 };
@@ -94,6 +103,18 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function normalizeVersionValue(value, fallback = "0.0.0") {
+  const raw = String(value ?? "").trim();
+  if (!raw || raw === "-" || /^0(?:\.0)+(?:\.0)?$/.test(raw)) return fallback;
+  return raw;
+}
+
+function getVersionLabel() {
+  const appVersion = normalizeVersionValue(state.appMeta.appVersion, "0.0.0");
+  const buildVersion = normalizeVersionValue(state.appMeta.buildVersion, appVersion);
+  return buildVersion === appVersion ? appVersion : `${appVersion} (build ${buildVersion})`;
+}
+
 function getCurrentUser() {
   return state.users.find((user) => user.id === state.currentUserId) ?? null;
 }
@@ -140,6 +161,11 @@ function applyLoadedState(parsed) {
   state.roles = Array.isArray(parsed.roles) ? parsed.roles : [];
   state.users = Array.isArray(parsed.users) ? parsed.users : [];
   state.currentUserId = parsed.currentUserId ?? null;
+  const hasAuthSettings = parsed.auth && typeof parsed.auth === "object";
+  state.auth = {
+    rememberSession: hasAuthSettings ? Boolean(parsed.auth?.rememberSession) : Boolean(parsed.currentUserId),
+    rememberedUserId: hasAuthSettings ? parsed.auth?.rememberedUserId ?? null : parsed.currentUserId ?? null
+  };
 }
 
 function readLegacyLocalStorageState() {
@@ -175,7 +201,8 @@ async function loadState() {
           databaseConfig: state.databaseConfig,
           roles: state.roles,
           users: state.users,
-          currentUserId: state.currentUserId
+          currentUserId: state.currentUserId,
+          auth: state.auth
         });
         localStorage.removeItem(LEGACY_STORAGE_KEY);
       }
@@ -199,7 +226,8 @@ function saveState() {
     databaseConfig: state.databaseConfig,
     roles: state.roles,
     users: state.users,
-    currentUserId: state.currentUserId
+    currentUserId: state.currentUserId,
+    auth: state.auth
   };
   if (!window.teachAxoDb?.saveState) {
     console.error("SQLite API недоступен. Сохранение отменено.");
@@ -458,9 +486,9 @@ function renderHomeDashboard() {
 function renderSettingsPage() {
   const currentUser = getCurrentUser();
   const currentRole = currentUser ? getRole(currentUser.roleId) : null;
-  const appVersion = window.teachAxo?.appVersion || "-";
-  const buildVersion = window.teachAxo?.buildVersion || appVersion;
-  const versionLabel = buildVersion === appVersion ? appVersion : `${appVersion} (build ${buildVersion})`;
+  const appVersion = normalizeVersionValue(state.appMeta.appVersion, "-");
+  const buildVersion = normalizeVersionValue(state.appMeta.buildVersion, appVersion);
+  const versionLabel = getVersionLabel();
 
   document.getElementById("settings-app-version").textContent = appVersion;
   document.getElementById("settings-build-version").textContent = buildVersion;
@@ -922,6 +950,8 @@ function setupAuthHandlers() {
     authScreen.classList.remove("hidden");
     appShell.classList.add("hidden");
     document.getElementById("login-form").reset();
+    const rememberCheckbox = document.getElementById("login-remember");
+    if (rememberCheckbox) rememberCheckbox.checked = state.auth.rememberSession;
     loginError.classList.add("hidden");
     loginError.textContent = "";
   };
@@ -939,6 +969,7 @@ function setupAuthHandlers() {
     event.preventDefault();
     const username = document.getElementById("login-username").value.trim().toLowerCase();
     const password = document.getElementById("login-password").value;
+    const rememberSession = document.getElementById("login-remember").checked;
     const user = state.users.find(
       (candidate) => candidate.username.toLowerCase() === username && candidate.password === password
     );
@@ -948,24 +979,48 @@ function setupAuthHandlers() {
       return;
     }
     state.currentUserId = user.id;
+    state.auth.rememberSession = rememberSession;
+    state.auth.rememberedUserId = rememberSession ? user.id : null;
     saveState();
     showApp();
   });
 
   document.getElementById("logout-button").addEventListener("click", () => {
     state.currentUserId = null;
+    state.auth.rememberSession = false;
+    state.auth.rememberedUserId = null;
     saveState();
     showLogin();
   });
+
+  if (!getCurrentUser() && state.auth.rememberSession && state.auth.rememberedUserId) {
+    const rememberedUser = state.users.find((user) => user.id === state.auth.rememberedUserId);
+    if (rememberedUser) {
+      state.currentUserId = rememberedUser.id;
+      saveState();
+    } else {
+      state.auth.rememberSession = false;
+      state.auth.rememberedUserId = null;
+      saveState();
+    }
+  }
 
   if (getCurrentUser()) showApp();
   else showLogin();
 }
 
 async function init() {
-  const appVersion = window.teachAxo?.appVersion || "0.0.0";
-  const buildVersion = window.teachAxo?.buildVersion || appVersion;
-  const versionLabel = buildVersion === appVersion ? appVersion : `${appVersion} (build ${buildVersion})`;
+  try {
+    const meta = await window.teachAxo?.getMeta?.();
+    if (meta && typeof meta === "object") {
+      state.appMeta.appName = meta.appName || "TeachAxo";
+      state.appMeta.appVersion = normalizeVersionValue(meta.appVersion, "0.0.0");
+      state.appMeta.buildVersion = normalizeVersionValue(meta.buildVersion, state.appMeta.appVersion);
+    }
+  } catch (error) {
+    console.warn("Не удалось получить метаданные приложения:", error);
+  }
+  const versionLabel = getVersionLabel();
   const appVersionNode = document.getElementById("app-version");
   if (appVersionNode) appVersionNode.textContent = versionLabel;
   await loadState();
