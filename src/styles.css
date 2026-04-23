@@ -303,6 +303,195 @@ body {
 
 .page-card {
   padding: 14px;
+  min-width: 0;
+}
+
+/* Students & Grades */
+.students-page,
+.grades-page {
+  min-width: 0;
+}
+
+.students-layout,
+.grades-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  min-width: 0;
+}
+
+.students-panel,
+.grades-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.students-panel > .ui.header:first-child,
+.grades-panel > .ui.header:first-child {
+  margin: 0 !important;
+}
+
+.students-panel .ui.form,
+.grades-panel .ui.form {
+  min-width: 0;
+}
+
+.students-main,
+.grades-main {
+  min-width: 0;
+}
+
+.students-main > .ui.segment,
+.grades-main > .ui.segment {
+  margin: 0 !important;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.students-main > .ui.segment > .ui.header,
+.grades-main > .ui.segment > .ui.header {
+  margin: 0 !important;
+}
+
+.students-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.students-toolbar .ui.header {
+  margin: 0 !important;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.students-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.students-search-wrap,
+.grades-main .ui.fluid.icon.input {
+  width: 100%;
+  min-width: 0;
+}
+
+.students-table-wrap,
+.grades-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  -webkit-overflow-scrolling: touch;
+}
+
+.students-table-wrap .ui.table,
+.grades-table-wrap .ui.table {
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  min-width: 680px;
+}
+
+.students-data-table,
+.grades-data-table {
+  table-layout: fixed;
+}
+
+.students-data-table thead th,
+.students-data-table tbody td,
+.grades-data-table thead th,
+.grades-data-table tbody td {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  vertical-align: top !important;
+  font-size: 13px;
+}
+
+.students-data-table thead th:nth-child(1),
+.students-data-table tbody td:nth-child(1) {
+  width: 28%;
+}
+
+.students-data-table thead th:nth-child(2),
+.students-data-table tbody td:nth-child(2) {
+  width: 12%;
+}
+
+.students-data-table thead th:nth-child(3),
+.students-data-table tbody td:nth-child(3) {
+  width: 16%;
+}
+
+.students-data-table thead th:nth-child(4),
+.students-data-table tbody td:nth-child(4) {
+  width: 26%;
+}
+
+.students-data-table thead th:nth-child(5),
+.students-data-table tbody td:nth-child(5) {
+  width: 120px;
+}
+
+.students-data-table .ui.mini.button {
+  margin: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.grades-data-table thead th:nth-child(1),
+.grades-data-table tbody td:nth-child(1) {
+  width: 112px;
+}
+
+.grades-data-table thead th:nth-child(2),
+.grades-data-table tbody td:nth-child(2) {
+  width: 22%;
+}
+
+.grades-data-table thead th:nth-child(3),
+.grades-data-table tbody td:nth-child(3) {
+  width: 12%;
+}
+
+.grades-data-table thead th:nth-child(4),
+.grades-data-table tbody td:nth-child(4) {
+  width: 64px;
+  text-align: center;
+}
+
+.grades-panel .grades-form-row.two.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+}
+
+.grades-panel .grades-form-row.two.fields > .field {
+  flex: 1 1 140px;
+  min-width: 0;
+  margin-bottom: 0.85em !important;
+}
+
+@media (max-width: 1100px) {
+  .students-layout,
+  .grades-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Access (roles & users) */

@@ -226,124 +226,130 @@
           </section>
 
           <section class="section page-card" data-section-panel="students">
-        <div class="ui stackable grid">
-          <div class="six wide column">
-            <h3 class="ui header">Новый ученик</h3>
-            <form id="student-form" class="ui form">
-              <div class="field">
-                <label>ФИО</label>
-                <input type="text" id="student-name" required placeholder="Иванов Иван Иванович" />
-              </div>
-              <div class="field">
-                <label>Класс</label>
-                <input
-                  type="text"
-                  id="student-class"
-                  required
-                  placeholder="Начните вводить название класса"
-                  list="classes-datalist"
-                />
-                <datalist id="classes-datalist"></datalist>
-              </div>
-              <div class="field">
-                <label>Предмет</label>
-                <input type="text" id="student-subject" placeholder="Математика" />
-              </div>
-              <div class="field">
-                <label>Контакты</label>
-                <input type="text" id="student-contact" placeholder="+7..., Telegram, email" />
-              </div>
-              <div class="field">
-                <label>Комментарий</label>
-                <textarea id="student-notes" rows="3"></textarea>
-              </div>
-              <button class="ui primary button" type="submit">Добавить</button>
-            </form>
-          </div>
-          <div class="ten wide column">
-            <div class="ui segment">
-              <div class="ui stackable grid middle aligned">
-                <div class="eight wide column">
-                  <h3 class="ui header">Список учеников</h3>
+            <div class="students-page">
+              <div class="students-layout">
+                <div class="students-panel">
+                  <h3 class="ui header">Новый ученик</h3>
+                  <form id="student-form" class="ui form">
+                    <div class="field">
+                      <label>ФИО</label>
+                      <input type="text" id="student-name" required placeholder="Иванов Иван Иванович" />
+                    </div>
+                    <div class="field">
+                      <label>Класс</label>
+                      <input
+                        type="text"
+                        id="student-class"
+                        required
+                        placeholder="Начните вводить название класса"
+                        list="classes-datalist"
+                      />
+                      <datalist id="classes-datalist"></datalist>
+                    </div>
+                    <div class="field">
+                      <label>Предмет</label>
+                      <input type="text" id="student-subject" placeholder="Математика" />
+                    </div>
+                    <div class="field">
+                      <label>Контакты</label>
+                      <input type="text" id="student-contact" placeholder="+7..., Telegram, email" />
+                    </div>
+                    <div class="field">
+                      <label>Комментарий</label>
+                      <textarea id="student-notes" rows="3"></textarea>
+                    </div>
+                    <button class="ui primary button" type="submit">Добавить</button>
+                  </form>
                 </div>
-                <div class="eight wide column right aligned">
-                  <button id="print-class-list" class="ui button">
-                    <i class="print icon"></i> Печать списка класса
-                  </button>
+                <div class="students-main">
+                  <div class="ui segment">
+                    <div class="students-toolbar">
+                      <h3 class="ui header">Список учеников</h3>
+                      <div class="students-toolbar-actions">
+                        <button id="print-class-list" class="ui button" type="button">
+                          <i class="print icon"></i> Печать списка класса
+                        </button>
+                      </div>
+                    </div>
+                    <div class="ui fluid icon input students-search-wrap">
+                      <input type="text" id="student-search" placeholder="Поиск по ФИО, классу или предмету..." />
+                      <i class="search icon"></i>
+                    </div>
+                    <div class="students-table-wrap">
+                      <table class="ui celled striped compact table students-data-table">
+                        <thead>
+                          <tr>
+                            <th>ФИО</th>
+                            <th>Класс</th>
+                            <th>Предмет</th>
+                            <th>Контакты</th>
+                            <th>Действия</th>
+                          </tr>
+                        </thead>
+                        <tbody id="students-table-body"></tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="ui fluid icon input">
-                <input type="text" id="student-search" placeholder="Поиск по ФИО, классу или предмету..." />
-                <i class="search icon"></i>
-              </div>
-              <table class="ui celled striped compact table">
-                <thead>
-                  <tr>
-                    <th>ФИО</th>
-                    <th>Класс</th>
-                    <th>Предмет</th>
-                    <th>Контакты</th>
-                    <th>Действия</th>
-                  </tr>
-                </thead>
-                <tbody id="students-table-body"></tbody>
-              </table>
             </div>
-          </div>
-        </div>
           </section>
 
           <section class="section page-card" data-section-panel="grades">
-        <div class="ui stackable grid">
-          <div class="six wide column">
-            <h3 class="ui header">Поставить оценку</h3>
-            <form id="grade-form" class="ui form">
-              <div class="field">
-                <label>Ученик</label>
-                <select id="grade-student" class="ui dropdown" required></select>
-              </div>
-              <div class="two fields">
-                <div class="field">
-                  <label>Оценка</label>
-                  <select id="grade-value" required>
-                    <option value="">Выберите</option>
-                    <option value="5">5</option>
-                    <option value="4">4</option>
-                    <option value="3">3</option>
-                    <option value="2">2</option>
-                    <option value="1">1</option>
-                  </select>
+            <div class="grades-page">
+              <div class="grades-layout">
+                <div class="grades-panel">
+                  <h3 class="ui header">Поставить оценку</h3>
+                  <form id="grade-form" class="ui form">
+                    <div class="field">
+                      <label>Ученик</label>
+                      <select id="grade-student" class="ui dropdown" required></select>
+                    </div>
+                    <div class="two fields grades-form-row">
+                      <div class="field">
+                        <label>Оценка</label>
+                        <select id="grade-value" required>
+                          <option value="">Выберите</option>
+                          <option value="5">5</option>
+                          <option value="4">4</option>
+                          <option value="3">3</option>
+                          <option value="2">2</option>
+                          <option value="1">1</option>
+                        </select>
+                      </div>
+                      <div class="field">
+                        <label>Дата</label>
+                        <input type="date" id="grade-date" required />
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label>Тема/комментарий</label>
+                      <input type="text" id="grade-comment" placeholder="Контрольная работа, домашнее задание..." />
+                    </div>
+                    <button class="ui primary button" type="submit">Сохранить оценку</button>
+                  </form>
                 </div>
-                <div class="field">
-                  <label>Дата</label>
-                  <input type="date" id="grade-date" required />
+                <div class="grades-main">
+                  <div class="ui segment">
+                    <h3 class="ui header">Журнал оценок</h3>
+                    <div class="grades-table-wrap">
+                      <table class="ui celled table grades-data-table">
+                        <thead>
+                          <tr>
+                            <th>Дата</th>
+                            <th>Ученик</th>
+                            <th>Класс</th>
+                            <th>Оценка</th>
+                            <th>Комментарий</th>
+                          </tr>
+                        </thead>
+                        <tbody id="grades-table-body"></tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="field">
-                <label>Тема/комментарий</label>
-                <input type="text" id="grade-comment" placeholder="Контрольная работа, домашнее задание..." />
-              </div>
-              <button class="ui primary button" type="submit">Сохранить оценку</button>
-            </form>
-          </div>
-          <div class="ten wide column">
-            <div class="ui segment">
-              <h3 class="ui header">Журнал оценок</h3>
-              <table class="ui celled table">
-                <thead>
-                  <tr>
-                    <th>Дата</th>
-                    <th>Ученик</th>
-                    <th>Класс</th>
-                    <th>Оценка</th>
-                    <th>Комментарий</th>
-                  </tr>
-                </thead>
-                <tbody id="grades-table-body"></tbody>
-              </table>
             </div>
-          </div>
-        </div>
           </section>
 
           <section class="section page-card" data-section-panel="schedule">
