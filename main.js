@@ -115,6 +115,7 @@ function createUpdaterWindow() {
   updaterWindow = new BrowserWindow({
     width: 520,
     height: 360,
+    frame: false,
     resizable: false,
     minimizable: false,
     maximizable: false,
@@ -619,6 +620,13 @@ function setupAutoUpdateFlow() {
 }
 
 function registerDatabaseIpcHandlers() {
+  ipcMain.handle("updater:close-window", (event) => {
+    const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+    if (!sourceWindow || sourceWindow.isDestroyed()) return { ok: false };
+    sourceWindow.close();
+    return { ok: true };
+  });
+
   ipcMain.handle("window:minimize", () => {
     if (!mainWindow || mainWindow.isDestroyed()) return { ok: false };
     mainWindow.minimize();

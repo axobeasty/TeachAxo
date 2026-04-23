@@ -23,10 +23,55 @@
         background: radial-gradient(1200px 500px at 20% -10%, #e8edff 0%, #f2f5fb 50%, #edf1f8 100%);
         color: var(--text);
         font-family: "Segoe UI", Arial, sans-serif;
+        -webkit-app-region: drag;
+      }
+
+      .titlebar {
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.82);
+        -webkit-app-region: drag;
+      }
+
+      .titlebar-label {
+        padding-left: 12px;
+        font-size: 12px;
+        color: #576380;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .titlebar-controls {
+        display: flex;
+        align-items: stretch;
+      }
+
+      .titlebar-btn {
+        width: 42px;
+        border: 0;
+        border-left: 1px solid #e9edf6;
+        background: transparent;
+        color: #3f4e69;
+        font-size: 16px;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+      }
+
+      .titlebar-btn:hover {
+        background: #eef2ff;
+      }
+
+      .titlebar-btn.close:hover {
+        background: #ff4d4f;
+        color: #fff;
       }
 
       .wrap {
-        min-height: 100vh;
+        min-height: calc(100vh - 34px);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -82,6 +127,12 @@
     </style>
   </head>
   <body>
+    <div class="titlebar">
+      <div class="titlebar-label">TeachAxo Updater</div>
+      <div class="titlebar-controls">
+        <button id="updater-close-btn" class="titlebar-btn close" type="button" title="Закрыть">×</button>
+      </div>
+    </div>
     <div class="wrap">
       <div class="update-card">
         <div class="update-hero">
@@ -100,6 +151,11 @@
       const statusElement = document.getElementById("status-message");
       const progressWrap = document.getElementById("progress-wrap");
       const progressBar = document.getElementById("progress-bar");
+      const closeBtn = document.getElementById("updater-close-btn");
+
+      closeBtn?.addEventListener("click", () => {
+        window.teachAxoUpdater.closeWindow?.().catch(() => {});
+      });
 
       function setProgress(percent) {
         const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
