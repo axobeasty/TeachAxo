@@ -198,6 +198,12 @@ body {
   max-width: 900px;
 }
 
+.home-version-line {
+  margin-top: 10px;
+  font-size: 13px;
+  opacity: 0.95;
+}
+
 .home-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

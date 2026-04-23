@@ -49,6 +49,12 @@ const state = {
 };
 
 const dayOrder = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
+const CURRENT_VERSION_CHANGELOG = [
+  "Ускорено автообновление за счет параллельного скачивания архива.",
+  "Приложение работает в режиме SQLite-only для хранения данных.",
+  "Добавлена миграция данных в удаленную MySQL из настроек.",
+  "Обновлен SPA-интерфейс с боковой навигацией и улучшенной сеткой."
+];
 
 function uid() {
   return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -454,13 +460,20 @@ function renderSettingsPage() {
   const currentRole = currentUser ? getRole(currentUser.roleId) : null;
   const appVersion = window.teachAxo?.appVersion || "-";
   const buildVersion = window.teachAxo?.buildVersion || appVersion;
+  const versionLabel = buildVersion === appVersion ? appVersion : `${appVersion} (build ${buildVersion})`;
 
   document.getElementById("settings-app-version").textContent = appVersion;
   document.getElementById("settings-build-version").textContent = buildVersion;
+  document.getElementById("settings-version-label").textContent = versionLabel;
   document.getElementById("settings-current-user").textContent = currentUser?.username || "-";
   document.getElementById("settings-current-role").textContent = currentRole?.name || "Без роли";
   document.getElementById("settings-storage-provider").textContent = String(state.storageInfo.provider || "sqlite").toUpperCase();
   document.getElementById("settings-sqlite-path").textContent = state.storageInfo.sqlitePath || "-";
+  document.getElementById("home-current-version").textContent = versionLabel;
+
+  document.getElementById("current-version-changelog").innerHTML = CURRENT_VERSION_CHANGELOG
+    .map((item) => `<li>${escapeHtml(item)}</li>`)
+    .join("");
 
   document.getElementById("database-mode").value = state.databaseConfig.mode;
   document.getElementById("database-local-name").value = state.databaseConfig.localName;
@@ -950,12 +963,11 @@ function setupAuthHandlers() {
 }
 
 async function init() {
-  if (window.teachAxo) {
-    const appVersion = window.teachAxo.appVersion || "0.0.0";
-    const buildVersion = window.teachAxo.buildVersion || appVersion;
-    const versionLabel = buildVersion === appVersion ? appVersion : `${appVersion} (build ${buildVersion})`;
-    document.getElementById("app-version").textContent = versionLabel;
-  }
+  const appVersion = window.teachAxo?.appVersion || "0.0.0";
+  const buildVersion = window.teachAxo?.buildVersion || appVersion;
+  const versionLabel = buildVersion === appVersion ? appVersion : `${appVersion} (build ${buildVersion})`;
+  const appVersionNode = document.getElementById("app-version");
+  if (appVersionNode) appVersionNode.textContent = versionLabel;
   await loadState();
   seedAccessData();
   state.students.forEach((student) => ensureClassExists(student.className));

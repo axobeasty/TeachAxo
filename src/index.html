@@ -67,6 +67,9 @@
               <div class="home-hero-subtitle" id="home-hero-subtitle">
                 Добро пожаловать в TeachAxo. Здесь собрана вся ключевая информация по классам, ученикам и урокам.
               </div>
+              <div class="home-version-line">
+                Текущая версия: <strong id="home-current-version">-</strong>
+              </div>
             </div>
 
             <div class="home-stats-grid">
@@ -461,6 +464,7 @@
                   <h3 class="ui header">Информация о приложении</h3>
                   <p>Текущая версия: <strong id="settings-app-version">-</strong></p>
                   <p>Сборка: <strong id="settings-build-version">-</strong></p>
+                  <p>Отображаемая версия: <strong id="settings-version-label">-</strong></p>
                 </div>
               </div>
               <div class="column">
@@ -528,6 +532,11 @@
 
             <div class="ui info message">
               Можно использовать локальную базу на этом устройстве или хранить данные в удаленной БД.
+            </div>
+
+            <div class="ui segment">
+              <h3 class="ui header">Что нового в текущей версии</h3>
+              <ul id="current-version-changelog" class="ui list"></ul>
             </div>
           </section>
         </main>
