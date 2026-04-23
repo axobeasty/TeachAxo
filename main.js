@@ -63,6 +63,21 @@ function openMainAndCloseUpdater() {
   createMainWindow();
 }
 
+function isSkippableUpdaterError(message) {
+  const normalized = String(message || "").toLowerCase();
+  return (
+    normalized.includes("no published versions on github") ||
+    normalized.includes("no published versions") ||
+    normalized.includes("cannot find latest.yml") ||
+    (normalized.includes("latest.yml") && normalized.includes("404"))
+  );
+}
+
+function fallbackToMainWithInfo(message) {
+  sendUpdaterStatus("up-to-date", message);
+  setTimeout(openMainAndCloseUpdater, 1200);
+}
+
 function setupAutoUpdateFlow() {
   if (!app.isPackaged) {
     createMainWindow();
@@ -115,16 +130,10 @@ function setupAutoUpdateFlow() {
 
   autoUpdater.on("error", (error) => {
     const message = error?.message || "Неизвестная ошибка при проверке обновлений.";
-    const noPublishedVersion =
-      message.toLowerCase().includes("no published versions on github") ||
-      message.toLowerCase().includes("no published versions");
-
-    if (noPublishedVersion) {
-      sendUpdaterStatus(
-        "up-to-date",
-        "Пока нет опубликованных версий на GitHub. Запускаем приложение..."
+    if (isSkippableUpdaterError(message)) {
+      fallbackToMainWithInfo(
+        "Релизные файлы обновления еще не готовы (latest.yml отсутствует). Запускаем приложение..."
       );
-      setTimeout(openMainAndCloseUpdater, 1200);
       return;
     }
 
@@ -133,6 +142,12 @@ function setupAutoUpdateFlow() {
   });
 
   autoUpdater.checkForUpdates().catch((error) => {
+    if (isSkippableUpdaterError(error?.message)) {
+      fallbackToMainWithInfo(
+        "Релизные файлы обновления еще не готовы (latest.yml отсутствует). Запускаем приложение..."
+      );
+      return;
+    }
     sendUpdaterStatus("error", `Не удалось запустить проверку обновлений: ${error.message}`);
     setTimeout(openMainAndCloseUpdater, 3000);
   });
