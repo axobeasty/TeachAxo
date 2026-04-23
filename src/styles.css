@@ -132,30 +132,75 @@ body {
   gap: 14px;
   padding: 18px 20px !important;
   margin-bottom: 8px;
-  min-height: 92px;
+  /* Фиксированная высота: иначе длинная версия/логин переносят meta и шапка «прыгает». */
+  height: 104px;
+  min-height: 104px;
+  max-height: 104px;
+  flex-shrink: 0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .app-header-meta {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  min-width: 0;
+  max-width: min(520px, 42vw);
+}
+
+.app-header-meta .ui.basic.label {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-header-meta .ui.basic.button {
+  flex-shrink: 0;
 }
 
 .app-header-brand {
   min-width: 0;
   flex: 1 1 auto;
+  align-self: center;
+  overflow: hidden;
 }
 
 .app-header-brand .ui.header {
+  display: flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.65rem;
   margin: 0 !important;
-  line-height: 1.2;
+  line-height: 1.25;
+}
+
+.app-header-brand .ui.header > .icon {
+  float: none !important;
+  margin: 0 !important;
+  line-height: 1;
+  padding-top: 0;
+  flex: 0 0 auto;
+}
+
+.app-header-brand .ui.header > .content {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 !important;
 }
 
 .app-header-brand .ui.header .sub.header {
-  margin-top: 6px !important;
-  line-height: 1.2;
+  margin-top: 4px !important;
+  line-height: 1.25;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .app-layout {
@@ -616,6 +661,10 @@ body {
     align-items: flex-start;
     padding: 14px !important;
     margin-bottom: 6px;
+    height: auto;
+    min-height: 104px;
+    max-height: none;
+    overflow: visible;
   }
 
   .app-header .ui.header {
@@ -624,7 +673,22 @@ body {
 
   .app-header-meta {
     width: 100%;
+    max-width: none;
+    flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .app-header-meta .ui.basic.label {
+    max-width: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .app-header-brand .ui.header .sub.header {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .app-header-meta .ui.basic.label,

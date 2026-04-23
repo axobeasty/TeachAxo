@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, Notification, dialog, nativeImage } = require("electron");
 const path = require("path");
 const fs = require("node:fs");
 const https = require("node:https");
@@ -24,6 +24,7 @@ let cachedUpdateStatus = {
 let runtimeCheckForUpdates = async () => cachedUpdateStatus;
 let runtimeInstallUpdate = async () => ({ ok: false, message: "Обновление недоступно." });
 const DB_RUNTIME_CONFIG_FILE = "db-runtime-config.json";
+const APP_UI_CONFIG_FILE = "app-ui-config.json";
 let dbHealthTimer = null;
 let cachedDbStatus = {
   mode: "local",
@@ -34,6 +35,9 @@ let cachedDbStatus = {
   sqlitePath: "",
   sqliteFileName: "teachaxo.sqlite"
 };
+let appUiConfig = {
+  iconPath: ""
+};
 
 function getDbRuntimeConfigPath(userDataPath) {
   return path.join(userDataPath, DB_RUNTIME_CONFIG_FILE);
@@ -42,17 +46,18 @@ function getDbRuntimeConfigPath(userDataPath) {
 function loadDbRuntimeConfig(userDataPath) {
   const configPath = getDbRuntimeConfigPath(userDataPath);
   if (!fs.existsSync(configPath)) {
-    return { mode: "local" };
+    return { mode: "local", localName: "teachaxo.sqlite" };
   }
   try {
     const raw = fs.readFileSync(configPath, "utf-8");
     const parsed = JSON.parse(raw);
     return {
       mode: parsed?.mode === "remote" ? "remote" : "local",
+      localName: String(parsed?.localName || "teachaxo.sqlite"),
       remote: parsed?.remote || {}
     };
   } catch (_error) {
-    return { mode: "local" };
+    return { mode: "local", localName: "teachaxo.sqlite" };
   }
 }
 
@@ -60,9 +65,56 @@ function saveDbRuntimeConfig(userDataPath, config) {
   const configPath = getDbRuntimeConfigPath(userDataPath);
   const safeConfig = {
     mode: config?.mode === "remote" ? "remote" : "local",
+    localName: String(config?.localName || "teachaxo.sqlite"),
     remote: config?.remote || {}
   };
   fs.writeFileSync(configPath, JSON.stringify(safeConfig, null, 2), "utf-8");
+}
+
+function getUiConfigPath(userDataPath) {
+  return path.join(userDataPath, APP_UI_CONFIG_FILE);
+}
+
+function loadUiConfig(userDataPath) {
+  const configPath = getUiConfigPath(userDataPath);
+  if (!fs.existsSync(configPath)) return { iconPath: "" };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    return {
+      iconPath: String(parsed?.iconPath || "")
+    };
+  } catch (_error) {
+    return { iconPath: "" };
+  }
+}
+
+function saveUiConfig(userDataPath, config) {
+  const configPath = getUiConfigPath(userDataPath);
+  const safeConfig = {
+    iconPath: String(config?.iconPath || "")
+  };
+  fs.writeFileSync(configPath, JSON.stringify(safeConfig, null, 2), "utf-8");
+}
+
+function resolveWindowIcon(iconPath) {
+  if (!iconPath) return undefined;
+  if (!fs.existsSync(iconPath)) return undefined;
+  const image = nativeImage.createFromPath(iconPath);
+  if (image.isEmpty()) return undefined;
+  return image;
+}
+
+function notifyWindows(title, body) {
+  if (!Notification.isSupported()) return;
+  try {
+    const notification = new Notification({
+      title: String(title || "TeachAxo"),
+      body: String(body || "")
+    });
+    notification.show();
+  } catch (_error) {
+    // Ignore notification errors.
+  }
 }
 
 function backupBrokenDbRuntimeConfig(userDataPath) {
@@ -78,6 +130,7 @@ function backupBrokenDbRuntimeConfig(userDataPath) {
 
 function createMainWindow() {
   if (mainWindow) return;
+  const customIcon = resolveWindowIcon(appUiConfig.iconPath);
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -85,6 +138,7 @@ function createMainWindow() {
     minHeight: 760,
     title: "TeachAxo",
     frame: false,
+    ...(customIcon ? { icon: customIcon } : {}),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -112,6 +166,7 @@ function createMainWindow() {
 }
 
 function createUpdaterWindow() {
+  const customIcon = resolveWindowIcon(appUiConfig.iconPath);
   updaterWindow = new BrowserWindow({
     width: 520,
     height: 360,
@@ -121,6 +176,7 @@ function createUpdaterWindow() {
     maximizable: false,
     autoHideMenuBar: true,
     title: "TeachAxo - Проверка обновлений",
+    ...(customIcon ? { icon: customIcon } : {}),
     webPreferences: {
       preload: path.join(__dirname, "updater-preload.js"),
       contextIsolation: true,
@@ -676,6 +732,7 @@ function registerDatabaseIpcHandlers() {
   ipcMain.handle("db:apply-runtime-config", async (_event, config) => {
     const safeConfig = {
       mode: config?.mode === "remote" ? "remote" : "local",
+      localName: String(config?.localName || "teachaxo.sqlite"),
       remote: config?.remote || {}
     };
 
@@ -690,7 +747,7 @@ function registerDatabaseIpcHandlers() {
       await withDbActivity("инициализация удаленной БД", async () => remoteService.init());
       await withDbActivity("запись в удаленную БД", async () => remoteService.setStateAsync(currentState));
     } else {
-      const localService = new DatabaseService(app.getPath("userData"), { mode: "local" });
+      const localService = new DatabaseService(app.getPath("userData"), safeConfig);
       await withDbActivity("инициализация SQLite", async () => localService.init());
       await withDbActivity("запись в SQLite", async () => localService.setStateAsync(currentState));
     }
@@ -739,11 +796,40 @@ function registerDatabaseIpcHandlers() {
   ipcMain.handle("app:get-update-status", async () => cachedUpdateStatus);
   ipcMain.handle("app:check-updates", async () => runtimeCheckForUpdates());
   ipcMain.handle("app:install-update", async () => runtimeInstallUpdate());
+  ipcMain.handle("app:notify", async (_event, payload) => {
+    notifyWindows(payload?.title || "TeachAxo", payload?.message || "");
+    return { ok: true };
+  });
+  ipcMain.handle("app:get-ui-config", async () => appUiConfig);
+  ipcMain.handle("app:pick-icon", async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openFile"],
+      filters: [{ name: "Icon files", extensions: ["ico", "png", "jpg", "jpeg"] }]
+    });
+    if (result.canceled || !result.filePaths?.length) return { ok: false, canceled: true };
+    return { ok: true, path: result.filePaths[0] };
+  });
+  ipcMain.handle("app:apply-ui-config", async (_event, config) => {
+    const nextConfig = {
+      iconPath: String(config?.iconPath || "")
+    };
+    appUiConfig = nextConfig;
+    saveUiConfig(app.getPath("userData"), nextConfig);
+    const iconImage = resolveWindowIcon(nextConfig.iconPath);
+    if (mainWindow && !mainWindow.isDestroyed() && iconImage) {
+      mainWindow.setIcon(iconImage);
+    }
+    if (updaterWindow && !updaterWindow.isDestroyed() && iconImage) {
+      updaterWindow.setIcon(iconImage);
+    }
+    return { ok: true };
+  });
 }
 
 app.whenReady().then(async () => {
   const userDataPath = app.getPath("userData");
   const runtimeDbConfig = loadDbRuntimeConfig(userDataPath);
+  appUiConfig = loadUiConfig(userDataPath);
 
   const initDatabaseWithFallback = async () => {
     dbService = new DatabaseService(userDataPath, runtimeDbConfig);
@@ -758,9 +844,12 @@ app.whenReady().then(async () => {
 
       console.error("Remote DB init failed, fallback to SQLite:", error);
       backupBrokenDbRuntimeConfig(userDataPath);
-      saveDbRuntimeConfig(userDataPath, { mode: "local" });
+      saveDbRuntimeConfig(userDataPath, { mode: "local", localName: runtimeDbConfig.localName || "teachaxo.sqlite" });
 
-      dbService = new DatabaseService(userDataPath, { mode: "local" });
+      dbService = new DatabaseService(userDataPath, {
+        mode: "local",
+        localName: runtimeDbConfig.localName || "teachaxo.sqlite"
+      });
       await dbService.init();
     }
   };
@@ -768,6 +857,7 @@ app.whenReady().then(async () => {
   try {
     await initDatabaseWithFallback();
     await refreshDbConnectionStatus();
+    notifyWindows("TeachAxo", cachedDbStatus.message);
     startDbHealthMonitor();
     registerDatabaseIpcHandlers();
     setupAutoUpdateFlow();

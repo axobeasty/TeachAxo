@@ -589,6 +589,21 @@
             </div>
 
             <div class="ui segment">
+              <h3 class="ui header">Внешний вид</h3>
+              <form id="app-appearance-form" class="ui form">
+                <div class="field">
+                  <label>Иконка приложения (окно)</label>
+                  <div class="ui action input">
+                    <input type="text" id="app-icon-path" placeholder="Путь к .ico/.png/.jpg" readonly />
+                    <button class="ui button" id="app-icon-browse" type="button">Выбрать</button>
+                  </div>
+                </div>
+                <button class="ui primary button" type="submit">Применить иконку</button>
+              </form>
+              <div id="app-appearance-status" class="ui tiny message hidden"></div>
+            </div>
+
+            <div class="ui segment">
               <h3 class="ui header">Что нового в текущей версии</h3>
               <div class="ui stackable three column grid">
                 <div class="column">

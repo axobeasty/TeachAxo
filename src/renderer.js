@@ -26,7 +26,7 @@ const state = {
   },
   databaseConfig: {
     mode: "local",
-    localName: "teachaxo_local.db",
+    localName: "teachaxo.sqlite",
     remote: {
       host: "",
       port: "3306",
@@ -67,6 +67,9 @@ const state = {
     progress: null
   },
   updatePromptedVersion: null,
+  uiConfig: {
+    iconPath: ""
+  },
   searchQuery: "",
   classSearchQuery: ""
 };
@@ -176,6 +179,17 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function notifyUser(message, type = "info") {
+  const titleByType = {
+    info: "TeachAxo",
+    success: "TeachAxo - Успешно",
+    warning: "TeachAxo - Внимание",
+    error: "TeachAxo - Ошибка"
+  };
+  const title = titleByType[type] || "TeachAxo";
+  window.teachAxo?.notify?.({ title, message: String(message || "") }).catch(() => {});
+}
+
 function normalizeVersionValue(value, fallback = "0.0.0") {
   const raw = String(value ?? "").trim();
   if (!raw || raw === "-" || /^0(?:\.0)+(?:\.0)?$/.test(raw)) return fallback;
@@ -222,7 +236,7 @@ function applyLoadedState(parsed) {
   };
   state.databaseConfig = {
     mode: parsed.databaseConfig?.mode === "remote" ? "remote" : "local",
-    localName: parsed.databaseConfig?.localName || "teachaxo_local.db",
+    localName: parsed.databaseConfig?.localName || "teachaxo.sqlite",
     remote: {
       host: parsed.databaseConfig?.remote?.host || "",
       port: parsed.databaseConfig?.remote?.port || "3306",
@@ -575,6 +589,8 @@ function renderSettingsPage() {
   document.getElementById("database-remote-user").value = state.databaseConfig.remote.user;
   document.getElementById("database-remote-password").value = state.databaseConfig.remote.password;
   document.getElementById("database-remote-name").value = state.databaseConfig.remote.database;
+  const iconPathInput = document.getElementById("app-icon-path");
+  if (iconPathInput) iconPathInput.value = state.uiConfig.iconPath || "";
 
   const isRemote = state.databaseConfig.mode === "remote";
   document.getElementById("database-local-fields").classList.toggle("hidden", isRemote);
@@ -746,13 +762,14 @@ function setupProfileHandlers() {
     form.reset();
     status.textContent = "Профиль успешно обновлен.";
     status.className = "ui tiny positive message";
+    notifyUser("Профиль успешно обновлен.", "success");
     renderAll();
   });
 }
 
 function requirePermission(permission) {
   if (hasPermission(permission)) return true;
-  alert("Недостаточно прав для этого действия.");
+  notifyUser("Недостаточно прав для этого действия.", "warning");
   return false;
 }
 
@@ -766,7 +783,7 @@ function setupClassesHandlers() {
     const note = document.getElementById("class-note").value.trim();
     if (!name) return;
     if (state.classes.some((item) => item.name.trim().toLowerCase() === name.toLowerCase())) {
-      alert("Такой класс уже есть.");
+      notifyUser("Такой класс уже есть.", "warning");
       return;
     }
     state.classes.push({ id: uid(), name, note });
@@ -785,7 +802,7 @@ function setupClassesHandlers() {
     const classItem = state.classes.find((item) => item.id === classId);
     if (!classItem) return;
     if (state.students.some((student) => student.className === classItem.name)) {
-      alert("Нельзя удалить класс, пока в нем есть ученики.");
+      notifyUser("Нельзя удалить класс, пока в нем есть ученики.", "warning");
       return;
     }
     state.classes = state.classes.filter((item) => item.id !== classId);
@@ -881,13 +898,13 @@ function setupScheduleHandlers() {
     const firstLessonStart = firstLessonStartInput.value;
     const lessonDurationMin = Number(lessonDurationSelect.value);
     if (!firstLessonStart || ![40, 45, 90].includes(lessonDurationMin)) {
-      alert("Проверьте настройки расписания.");
+      notifyUser("Проверьте настройки расписания.", "warning");
       return;
     }
     state.scheduleSettings = { firstLessonStart, lessonDurationMin };
     saveState();
     applyCalculatedTime();
-    alert("Настройки конструктора расписания сохранены.");
+    notifyUser("Настройки конструктора расписания сохранены.", "success");
   });
 
   lessonNumberInput.addEventListener("input", applyCalculatedTime);
@@ -905,11 +922,11 @@ function setupScheduleHandlers() {
     const room = document.getElementById("schedule-room").value.trim();
     const notes = document.getElementById("schedule-notes").value.trim();
     if (!day || !start || !end || !className || !subject || !Number.isInteger(lessonNumber) || lessonNumber < 1) {
-      alert("Заполните день, номер урока, класс и предмет.");
+      notifyUser("Заполните день, номер урока, класс и предмет.", "warning");
       return;
     }
     if (start >= end) {
-      alert("Время начала должно быть раньше времени окончания.");
+      notifyUser("Время начала должно быть раньше времени окончания.", "warning");
       return;
     }
     state.schedule.push({
@@ -949,7 +966,7 @@ function setupAccessHandlers() {
     const permissions = [...document.querySelectorAll(".role-permission:checked")].map((el) => el.value);
     if (!roleName) return;
     if (state.roles.some((role) => role.name.toLowerCase() === roleName.toLowerCase())) {
-      alert("Роль с таким названием уже существует.");
+      notifyUser("Роль с таким названием уже существует.", "warning");
       return;
     }
     state.roles.push({ id: uid(), name: roleName, permissions, isSystem: false });
@@ -965,11 +982,11 @@ function setupAccessHandlers() {
     const role = getRole(roleId);
     if (!role) return;
     if (role.isSystem) {
-      alert("Системную роль удалить нельзя.");
+      notifyUser("Системную роль удалить нельзя.", "warning");
       return;
     }
     if (state.users.some((user) => user.roleId === roleId)) {
-      alert("Нельзя удалить роль, пока она назначена пользователям.");
+      notifyUser("Нельзя удалить роль, пока она назначена пользователям.", "warning");
       return;
     }
     state.roles = state.roles.filter((item) => item.id !== roleId);
@@ -985,11 +1002,11 @@ function setupAccessHandlers() {
     const roleId = document.getElementById("user-role").value;
     if (!username || !password || !roleId) return;
     if (password.length < 4) {
-      alert("Пароль должен быть не короче 4 символов.");
+      notifyUser("Пароль должен быть не короче 4 символов.", "warning");
       return;
     }
     if (state.users.some((user) => user.username.toLowerCase() === username.toLowerCase())) {
-      alert("Пользователь с таким логином уже существует.");
+      notifyUser("Пользователь с таким логином уже существует.", "warning");
       return;
     }
     state.users.push({ id: uid(), username, password, roleId, isSystem: false });
@@ -1005,11 +1022,11 @@ function setupAccessHandlers() {
     const user = state.users.find((item) => item.id === userId);
     if (!user) return;
     if (user.id === state.currentUserId) {
-      alert("Нельзя удалить текущего пользователя.");
+      notifyUser("Нельзя удалить текущего пользователя.", "warning");
       return;
     }
     if (user.isSystem) {
-      alert("Системного пользователя удалить нельзя.");
+      notifyUser("Системного пользователя удалить нельзя.", "warning");
       return;
     }
     state.users = state.users.filter((item) => item.id !== userId);
@@ -1029,7 +1046,7 @@ function setupDatabaseSettingsHandlers() {
 
   const buildDatabaseConfigFromForm = () => {
     const mode = modeSelect.value === "remote" ? "remote" : "local";
-    const localName = document.getElementById("database-local-name").value.trim() || "teachaxo_local.db";
+    const localName = document.getElementById("database-local-name").value.trim() || "teachaxo.sqlite";
     const remote = {
       host: document.getElementById("database-remote-host").value.trim(),
       port: document.getElementById("database-remote-port").value.trim() || "3306",
@@ -1053,6 +1070,7 @@ function setupDatabaseSettingsHandlers() {
     if (mode === "remote" && (!remote.host || !remote.port || !remote.user || !remote.database)) {
       status.textContent = "Для удаленной базы заполните host, port, пользователя и имя БД.";
       status.className = "ui tiny red message";
+      notifyUser(status.textContent, "warning");
       return;
     }
 
@@ -1064,10 +1082,11 @@ function setupDatabaseSettingsHandlers() {
       }
       status.textContent = "Применяем настройки БД и перезапускаем приложение...";
       status.className = "ui tiny info message";
-      await window.teachAxoDb.applyRuntimeConfig({ mode, remote });
+      await window.teachAxoDb.applyRuntimeConfig({ mode, localName, remote });
     } catch (error) {
       status.textContent = `Ошибка применения настроек БД: ${error.message}`;
       status.className = "ui tiny red message";
+      notifyUser(status.textContent, "error");
     }
   });
 
@@ -1085,9 +1104,11 @@ function setupDatabaseSettingsHandlers() {
       await window.teachAxoDb.testMysqlConnection(config);
       status.textContent = "Подключение к MySQL успешно установлено.";
       status.className = "ui tiny positive message";
+      notifyUser(status.textContent, "success");
     } catch (error) {
       status.textContent = `Ошибка подключения: ${error.message}`;
       status.className = "ui tiny red message";
+      notifyUser(status.textContent, "error");
     }
   });
 
@@ -1105,9 +1126,48 @@ function setupDatabaseSettingsHandlers() {
       await window.teachAxoDb.migrateToMysql(config);
       status.textContent = "Миграция в MySQL успешно завершена.";
       status.className = "ui tiny positive message";
+      notifyUser(status.textContent, "success");
     } catch (error) {
       status.textContent = `Ошибка миграции: ${error.message}`;
       status.className = "ui tiny red message";
+      notifyUser(status.textContent, "error");
+    }
+  });
+}
+
+function setupAppAppearanceHandlers() {
+  const form = document.getElementById("app-appearance-form");
+  const browseBtn = document.getElementById("app-icon-browse");
+  const pathInput = document.getElementById("app-icon-path");
+  const status = document.getElementById("app-appearance-status");
+  if (!form || !browseBtn || !pathInput || !status) return;
+
+  browseBtn.addEventListener("click", async () => {
+    try {
+      const result = await window.teachAxo?.pickIcon?.();
+      if (!result?.ok || result?.canceled) return;
+      pathInput.value = result.path || "";
+      state.uiConfig.iconPath = result.path || "";
+    } catch (error) {
+      status.textContent = `Не удалось выбрать файл иконки: ${error.message}`;
+      status.className = "ui tiny red message";
+      notifyUser(status.textContent, "error");
+    }
+  });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const iconPath = String(pathInput.value || "").trim();
+    try {
+      await window.teachAxo?.applyUiConfig?.({ iconPath });
+      state.uiConfig.iconPath = iconPath;
+      status.textContent = "Иконка приложения обновлена.";
+      status.className = "ui tiny positive message";
+      notifyUser("Иконка приложения обновлена.", "success");
+    } catch (error) {
+      status.textContent = `Ошибка применения иконки: ${error.message}`;
+      status.className = "ui tiny red message";
+      notifyUser(status.textContent, "error");
     }
   });
 }
@@ -1177,7 +1237,7 @@ function setupStatusBarHandlers() {
       try {
         await window.teachAxoDb.openSqliteLocation();
       } catch (error) {
-        alert(`Не удалось открыть папку базы данных: ${error.message}`);
+        notifyUser(`Не удалось открыть папку базы данных: ${error.message}`, "error");
       }
     });
   }
@@ -1415,6 +1475,14 @@ async function init() {
   } catch (error) {
     console.warn("Не удалось получить статус обновлений:", error);
   }
+  try {
+    const uiConfig = await window.teachAxo?.getUiConfig?.();
+    if (uiConfig && typeof uiConfig === "object") {
+      state.uiConfig.iconPath = String(uiConfig.iconPath || "");
+    }
+  } catch (error) {
+    console.warn("Не удалось получить UI-конфиг:", error);
+  }
   const versionLabel = getVersionLabel();
   const appVersionNode = document.getElementById("app-version");
   if (appVersionNode) appVersionNode.textContent = versionLabel;
@@ -1431,6 +1499,7 @@ async function init() {
   setupAccessHandlers();
   setupProfileHandlers();
   setupDatabaseSettingsHandlers();
+  setupAppAppearanceHandlers();
   setupStatusBarHandlers();
   setupPrintHandlers();
   setupAuthHandlers();

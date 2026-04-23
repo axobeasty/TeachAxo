@@ -9,10 +9,10 @@ const REL_SCHEMA_VERSION = "2";
 class DatabaseService {
   constructor(userDataPath, runtimeConfig = {}) {
     this.userDataPath = userDataPath;
-    this.sqlitePath = path.join(userDataPath, "teachaxo.sqlite");
+    this.runtimeConfig = this.normalizeRuntimeConfig(runtimeConfig);
+    this.sqlitePath = path.join(userDataPath, this.resolveLocalDbFileName(this.runtimeConfig.localName));
     this.SQL = null;
     this.db = null;
-    this.runtimeConfig = this.normalizeRuntimeConfig(runtimeConfig);
     this.remoteConfig = null;
     this.remoteSchemaReady = false;
   }
@@ -28,8 +28,10 @@ class DatabaseService {
   normalizeRuntimeConfig(config) {
     const mode = config?.mode === "remote" ? "remote" : "local";
     const remote = config?.remote || {};
+    const localName = String(config?.localName || "teachaxo.sqlite").trim() || "teachaxo.sqlite";
     return {
       mode,
+      localName,
       remote: {
         host: String(remote.host || "").trim(),
         port: String(remote.port || "3306").trim() || "3306",
@@ -38,6 +40,17 @@ class DatabaseService {
         database: String(remote.database || "").trim()
       }
     };
+  }
+
+  resolveLocalDbFileName(fileName) {
+    const fallback = "teachaxo.sqlite";
+    const normalized = String(fileName || "").trim();
+    if (!normalized) return fallback;
+    const baseName = path.basename(normalized);
+    const safeName = baseName.replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_");
+    if (!safeName) return fallback;
+    if (safeName.includes(".")) return safeName;
+    return `${safeName}.sqlite`;
   }
 
   async initSqlite() {
@@ -277,7 +290,7 @@ class DatabaseService {
       scheduleSettings: { firstLessonStart: "08:00", lessonDurationMin: 45 },
       databaseConfig: {
         mode: "local",
-        localName: "teachaxo_local.db",
+        localName: "teachaxo.sqlite",
         remote: { host: "", port: "3306", user: "", password: "", database: "" }
       },
       roles: [],
