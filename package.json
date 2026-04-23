@@ -1,6 +1,6 @@
 {
   "name": "teachaxo",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Desktop app for student records, grading, and schedule management.",
   "main": "main.js",
   "scripts": {
@@ -29,12 +29,13 @@
   "build": {
     "appId": "com.teachaxo.app",
     "productName": "TeachAxo",
-    "buildVersion": "1.0.9.0",
+    "buildVersion": "1.0.10.0",
     "directories": {
       "output": "dist"
     },
     "files": [
       "main.js",
+      "database.js",
       "preload.js",
       "updater-preload.js",
       "src/**/*",
