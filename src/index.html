@@ -97,19 +97,23 @@
         </div>
         <div class="ui segment">
           <h3 class="ui header">Мое расписание</h3>
-          <table class="ui celled striped table">
-            <thead>
-              <tr>
-                <th>День</th>
-                <th>Время</th>
-                <th>Класс</th>
-                <th>Предмет</th>
-                <th>Кабинет</th>
-                <th>Комментарий</th>
-              </tr>
-            </thead>
-            <tbody id="home-schedule-table-body"></tbody>
-          </table>
+          <div class="weekly-schedule-wrapper">
+            <table class="ui celled striped table weekly-schedule-table">
+              <thead>
+                <tr>
+                  <th>Время</th>
+                  <th>Понедельник</th>
+                  <th>Вторник</th>
+                  <th>Среда</th>
+                  <th>Четверг</th>
+                  <th>Пятница</th>
+                  <th>Суббота</th>
+                  <th>Воскресенье</th>
+                </tr>
+              </thead>
+              <tbody id="home-schedule-table-body"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -277,6 +281,24 @@
         <div class="ui stackable grid">
           <div class="six wide column">
             <h3 class="ui header">Конструктор расписания</h3>
+            <div class="ui secondary segment">
+              <h4 class="ui header">Настройки конструктора</h4>
+              <form id="schedule-settings-form" class="ui form">
+                <div class="field">
+                  <label>Начало первого урока</label>
+                  <input type="time" id="schedule-first-lesson-start" required />
+                </div>
+                <div class="field">
+                  <label>Длительность урока</label>
+                  <select id="schedule-lesson-duration" required>
+                    <option value="40">40 минут</option>
+                    <option value="45">45 минут</option>
+                    <option value="90">1.5 часа</option>
+                  </select>
+                </div>
+                <button class="ui button" type="submit">Сохранить настройки</button>
+              </form>
+            </div>
             <form id="schedule-form" class="ui form">
               <div class="field">
                 <label>День недели</label>
@@ -291,14 +313,18 @@
                   <option value="Воскресенье">Воскресенье</option>
                 </select>
               </div>
+              <div class="field">
+                <label>Номер урока</label>
+                <input type="number" id="schedule-lesson-number" min="1" step="1" required placeholder="1" />
+              </div>
               <div class="two fields">
                 <div class="field">
                   <label>Начало</label>
-                  <input type="time" id="schedule-start" required />
+                  <input type="time" id="schedule-start" required readonly />
                 </div>
                 <div class="field">
                   <label>Конец</label>
-                  <input type="time" id="schedule-end" required />
+                  <input type="time" id="schedule-end" required readonly />
                 </div>
               </div>
               <div class="field">

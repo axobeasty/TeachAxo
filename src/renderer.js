@@ -22,6 +22,10 @@ const state = {
   students: [],
   grades: [],
   schedule: [],
+  scheduleSettings: {
+    firstLessonStart: "08:00",
+    lessonDurationMin: 45
+  },
   roles: [],
   users: [],
   currentUserId: null,
@@ -33,6 +37,31 @@ const dayOrder = ["Понедельник", "Вторник", "Среда", "Ч�
 
 function uid() {
   return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function toMinutes(timeValue) {
+  const [hours, minutes] = String(timeValue || "00:00")
+    .split(":")
+    .map((value) => Number(value));
+  return hours * 60 + minutes;
+}
+
+function fromMinutes(totalMinutes) {
+  const minutesInDay = 24 * 60;
+  const normalized = ((totalMinutes % minutesInDay) + minutesInDay) % minutesInDay;
+  const hours = String(Math.floor(normalized / 60)).padStart(2, "0");
+  const minutes = String(normalized % 60).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function calculateLessonTime(lessonNumber) {
+  const lessonIndex = Number(lessonNumber) - 1;
+  if (!Number.isInteger(lessonIndex) || lessonIndex < 0) return null;
+  const baseStartMinutes = toMinutes(state.scheduleSettings.firstLessonStart);
+  const duration = Number(state.scheduleSettings.lessonDurationMin);
+  const start = fromMinutes(baseStartMinutes + lessonIndex * duration);
+  const end = fromMinutes(baseStartMinutes + (lessonIndex + 1) * duration);
+  return { start, end };
 }
 
 function escapeHtml(value) {
@@ -75,6 +104,10 @@ function loadState() {
     state.students = Array.isArray(parsed.students) ? parsed.students : [];
     state.grades = Array.isArray(parsed.grades) ? parsed.grades : [];
     state.schedule = Array.isArray(parsed.schedule) ? parsed.schedule : [];
+    state.scheduleSettings = {
+      firstLessonStart: parsed.scheduleSettings?.firstLessonStart || "08:00",
+      lessonDurationMin: Number(parsed.scheduleSettings?.lessonDurationMin) || 45
+    };
     state.roles = Array.isArray(parsed.roles) ? parsed.roles : [];
     state.users = Array.isArray(parsed.users) ? parsed.users : [];
     state.currentUserId = parsed.currentUserId ?? null;
@@ -91,6 +124,7 @@ function saveState() {
       students: state.students,
       grades: state.grades,
       schedule: state.schedule,
+      scheduleSettings: state.scheduleSettings,
       roles: state.roles,
       users: state.users,
       currentUserId: state.currentUserId
@@ -266,21 +300,40 @@ function renderHomeSchedule() {
   });
 
   if (sorted.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="center aligned">У вас пока нет записей в расписании.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="center aligned">У вас пока нет записей в расписании.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = sorted
-    .map(
-      (entry) => `<tr>
-        <td>${escapeHtml(entry.day)}</td>
-        <td>${escapeHtml(entry.start)} - ${escapeHtml(entry.end)}</td>
-        <td>${escapeHtml(entry.className)}</td>
-        <td>${escapeHtml(entry.subject)}</td>
-        <td>${escapeHtml(entry.room || "-")}</td>
-        <td>${escapeHtml(entry.notes || "-")}</td>
-      </tr>`
-    )
+  const slotKeys = [...new Set(sorted.map((entry) => `${entry.start}-${entry.end}`))].sort((a, b) => {
+    const [startA] = a.split("-");
+    const [startB] = b.split("-");
+    return startA.localeCompare(startB);
+  });
+
+  const byDayAndTime = new Map();
+  sorted.forEach((entry) => {
+    byDayAndTime.set(`${entry.day}|${entry.start}-${entry.end}`, entry);
+  });
+
+  tbody.innerHTML = slotKeys
+    .map((slot) => {
+      const [start, end] = slot.split("-");
+      const cells = dayOrder
+        .map((day) => {
+          const entry = byDayAndTime.get(`${day}|${slot}`);
+          if (!entry) return `<td class="weekly-empty-cell">-</td>`;
+          return `<td>
+            <div class="weekly-schedule-entry">
+              <div class="subject">${escapeHtml(entry.subject)}</div>
+              <div>${escapeHtml(entry.className)}</div>
+              <div class="meta">Кабинет: ${escapeHtml(entry.room || "-")}</div>
+              <div class="meta">${escapeHtml(entry.notes || "")}</div>
+            </div>
+          </td>`;
+        })
+        .join("");
+      return `<tr><td>${escapeHtml(start)} - ${escapeHtml(end)}</td>${cells}</tr>`;
+    })
     .join("");
 }
 
@@ -426,17 +479,66 @@ function setupGradesHandlers() {
 
 function setupScheduleHandlers() {
   const form = document.getElementById("schedule-form");
+  const settingsForm = document.getElementById("schedule-settings-form");
+  const firstLessonStartInput = document.getElementById("schedule-first-lesson-start");
+  const lessonDurationSelect = document.getElementById("schedule-lesson-duration");
+  const lessonNumberInput = document.getElementById("schedule-lesson-number");
+  const startInput = document.getElementById("schedule-start");
+  const endInput = document.getElementById("schedule-end");
+
+  const applyCalculatedTime = () => {
+    const lessonNumber = Number(lessonNumberInput.value);
+    const timeRange = calculateLessonTime(lessonNumber);
+    if (!timeRange) {
+      startInput.value = "";
+      endInput.value = "";
+      return;
+    }
+    startInput.value = timeRange.start;
+    endInput.value = timeRange.end;
+  };
+
+  const syncSettingsForm = () => {
+    firstLessonStartInput.value = state.scheduleSettings.firstLessonStart;
+    lessonDurationSelect.value = String(state.scheduleSettings.lessonDurationMin);
+  };
+
+  syncSettingsForm();
+  applyCalculatedTime();
+
+  settingsForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!requirePermission("manage_schedule")) return;
+    const firstLessonStart = firstLessonStartInput.value;
+    const lessonDurationMin = Number(lessonDurationSelect.value);
+    if (!firstLessonStart || ![40, 45, 90].includes(lessonDurationMin)) {
+      alert("Проверьте настройки расписания.");
+      return;
+    }
+    state.scheduleSettings = { firstLessonStart, lessonDurationMin };
+    saveState();
+    applyCalculatedTime();
+    alert("Настройки конструктора расписания сохранены.");
+  });
+
+  lessonNumberInput.addEventListener("input", applyCalculatedTime);
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!requirePermission("manage_schedule")) return;
     const day = document.getElementById("schedule-day").value;
-    const start = document.getElementById("schedule-start").value;
-    const end = document.getElementById("schedule-end").value;
+    const lessonNumber = Number(lessonNumberInput.value);
+    const timeRange = calculateLessonTime(lessonNumber);
+    const start = timeRange?.start || "";
+    const end = timeRange?.end || "";
     const className = document.getElementById("schedule-class").value.trim();
     const subject = document.getElementById("schedule-subject").value.trim();
     const room = document.getElementById("schedule-room").value.trim();
     const notes = document.getElementById("schedule-notes").value.trim();
-    if (!day || !start || !end || !className || !subject) return;
+    if (!day || !start || !end || !className || !subject || !Number.isInteger(lessonNumber) || lessonNumber < 1) {
+      alert("Заполните день, номер урока, класс и предмет.");
+      return;
+    }
     if (start >= end) {
       alert("Время начала должно быть раньше времени окончания.");
       return;
@@ -445,6 +547,7 @@ function setupScheduleHandlers() {
       id: uid(),
       userId: state.currentUserId,
       day,
+      lessonNumber,
       start,
       end,
       className,
@@ -453,6 +556,7 @@ function setupScheduleHandlers() {
       notes
     });
     form.reset();
+    applyCalculatedTime();
     saveState();
     renderSchedule();
     renderHomeSchedule();

@@ -43,6 +43,43 @@ body {
   min-height: 38px;
 }
 
+.weekly-schedule-wrapper {
+  overflow-x: auto;
+}
+
+.weekly-schedule-table th,
+.weekly-schedule-table td {
+  vertical-align: top;
+  min-width: 140px;
+}
+
+.weekly-schedule-table th:first-child,
+.weekly-schedule-table td:first-child {
+  min-width: 110px;
+  white-space: nowrap;
+}
+
+.weekly-schedule-entry {
+  background: #eef4ff;
+  border-radius: 6px;
+  padding: 8px;
+  line-height: 1.35;
+}
+
+.weekly-schedule-entry .subject {
+  font-weight: 700;
+}
+
+.weekly-schedule-entry .meta {
+  color: #52607a;
+  font-size: 12px;
+}
+
+.weekly-empty-cell {
+  color: #9aa5b1;
+  text-align: center;
+}
+
 @media print {
   body * {
     visibility: hidden;
