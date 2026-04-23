@@ -1,6 +1,8 @@
 const { contextBridge } = require("electron");
+const pkg = require("./package.json");
 
 contextBridge.exposeInMainWorld("teachAxo", {
   appName: "TeachAxo",
-  appVersion: "1.0.0"
+  appVersion: pkg.version,
+  buildVersion: pkg.build?.buildVersion || pkg.version
 });

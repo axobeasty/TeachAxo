@@ -601,7 +601,10 @@ function setupAuthHandlers() {
 }
 
 function init() {
-  if (window.teachAxo?.appVersion) document.getElementById("app-version").textContent = window.teachAxo.appVersion;
+  if (window.teachAxo?.appVersion) {
+    const versionLabel = window.teachAxo.buildVersion || window.teachAxo.appVersion;
+    document.getElementById("app-version").textContent = versionLabel;
+  }
   loadState();
   seedAccessData();
   state.students.forEach((student) => ensureClassExists(student.className));

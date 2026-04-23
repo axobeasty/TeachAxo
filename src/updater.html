@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TeachAxo - Проверка обновлений</title>
+    <link rel="stylesheet" href="../node_modules/semantic-ui-css/semantic.min.css" />
+    <style>
+      body {
+        background: #f6f8fb;
+      }
+      .wrap {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .status {
+        font-size: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="ui raised very padded text container segment">
+        <h2 class="ui header">
+          <i class="sync alternate icon"></i>
+          <div class="content">
+            TeachAxo
+            <div class="sub header">Проверка обновлений</div>
+          </div>
+        </h2>
+        <p id="status-message" class="status">Инициализация...</p>
+        <div class="ui tiny indicating progress" id="progress-wrap">
+          <div class="bar" id="progress-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const statusElement = document.getElementById("status-message");
+      const progressWrap = document.getElementById("progress-wrap");
+      const progressBar = document.getElementById("progress-bar");
+
+      function setProgress(percent) {
+        const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
+        progressBar.style.width = `${safePercent}%`;
+      }
+
+      window.teachAxoUpdater.onStatus((payload) => {
+        statusElement.textContent = payload.message;
+
+        if (payload.type === "downloading") {
+          progressWrap.classList.remove("hidden");
+          setProgress(payload.progress || 0);
+          return;
+        }
+
+        if (payload.type === "up-to-date" || payload.type === "error" || payload.type === "installing") {
+          setProgress(100);
+          return;
+        }
+
+        setProgress(15);
+      });
+    </script>
+  </body>
+</html>
