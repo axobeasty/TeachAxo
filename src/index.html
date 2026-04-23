@@ -79,70 +79,109 @@
 
         <main class="app-content">
           <section class="section page-card active" data-section-panel="home">
-            <div class="home-hero">
-              <div class="home-hero-title">Панель преподавателя</div>
-              <div class="home-hero-subtitle" id="home-hero-subtitle">
-                Добро пожаловать в TeachAxo. Здесь собрана вся ключевая информация по классам, ученикам и урокам.
-              </div>
-              <div class="home-version-line">
-                Текущая версия: <strong id="home-current-version">-</strong>
-              </div>
-            </div>
-
-            <div class="home-stats-grid">
-              <article class="home-stat-card">
-                <div class="meta">Классы</div>
-                <div class="value" id="home-stat-classes">0</div>
-              </article>
-              <article class="home-stat-card">
-                <div class="meta">Ученики</div>
-                <div class="value" id="home-stat-students">0</div>
-              </article>
-              <article class="home-stat-card">
-                <div class="meta">Оценки</div>
-                <div class="value" id="home-stat-grades">0</div>
-              </article>
-              <article class="home-stat-card">
-                <div class="meta">Уроки в расписании</div>
-                <div class="value" id="home-stat-schedule">0</div>
-              </article>
-            </div>
-
-            <div class="home-main-grid">
-              <div class="home-panel home-panel-large">
-                <h3 class="ui header">Мое расписание на неделю</h3>
-                <div class="weekly-schedule-wrapper">
-                  <table class="ui celled striped table weekly-schedule-table">
-                    <thead>
-                      <tr>
-                        <th>Время</th>
-                        <th>Понедельник</th>
-                        <th>Вторник</th>
-                        <th>Среда</th>
-                        <th>Четверг</th>
-                        <th>Пятница</th>
-                        <th>Суббота</th>
-                        <th>Воскресенье</th>
-                      </tr>
-                    </thead>
-                    <tbody id="home-schedule-table-body"></tbody>
-                  </table>
+            <div class="dashboard-page">
+              <header class="dashboard-welcome">
+                <div class="dashboard-welcome-text">
+                  <h2 class="dashboard-title">Дашборд</h2>
+                  <p class="dashboard-subtitle" id="home-hero-subtitle">
+                    Добро пожаловать в TeachAxo. Здесь собрана вся ключевая информация по классам, ученикам и урокам.
+                  </p>
                 </div>
+                <div class="home-version-line dashboard-version-pill">
+                  <span class="dashboard-version-label">Версия</span>
+                  <strong id="home-current-version">-</strong>
+                </div>
+              </header>
+
+              <div class="dashboard-stats home-stats-grid">
+                <article class="dashboard-stat home-stat-card" data-stat="classes">
+                  <span class="dashboard-stat-icon" aria-hidden="true">К</span>
+                  <div class="dashboard-stat-body">
+                    <div class="meta">Классы</div>
+                    <div class="value" id="home-stat-classes">0</div>
+                  </div>
+                </article>
+                <article class="dashboard-stat home-stat-card" data-stat="students">
+                  <span class="dashboard-stat-icon" aria-hidden="true">У</span>
+                  <div class="dashboard-stat-body">
+                    <div class="meta">Ученики</div>
+                    <div class="value" id="home-stat-students">0</div>
+                  </div>
+                </article>
+                <article class="dashboard-stat home-stat-card" data-stat="grades">
+                  <span class="dashboard-stat-icon" aria-hidden="true">О</span>
+                  <div class="dashboard-stat-body">
+                    <div class="meta">Оценки</div>
+                    <div class="value" id="home-stat-grades">0</div>
+                  </div>
+                </article>
+                <article class="dashboard-stat home-stat-card" data-stat="schedule">
+                  <span class="dashboard-stat-icon" aria-hidden="true">Р</span>
+                  <div class="dashboard-stat-body">
+                    <div class="meta">Уроки в расписании</div>
+                    <div class="value" id="home-stat-schedule">0</div>
+                  </div>
+                </article>
               </div>
-              <div class="home-side-stack">
-                <div class="home-panel">
-                  <h3 class="ui header">Быстрые действия</h3>
-                  <div class="home-quick-menu">
-                    <button class="quick-nav-button" data-go-section="classes">Открыть классы</button>
-                    <button class="quick-nav-button" data-go-section="students">Открыть учеников</button>
-                    <button class="quick-nav-button" data-go-section="grades">Открыть оценки</button>
-                    <button class="quick-nav-button" data-go-section="schedule">Открыть расписание</button>
+
+              <div class="dashboard-main-grid home-main-grid">
+                <div class="dashboard-card ui segment dashboard-schedule-card">
+                  <div class="dashboard-card-head">
+                    <h3 class="ui header dashboard-card-title">Расписание на неделю</h3>
+                    <p class="dashboard-card-hint">Сводка по временным слотам и дням. Прокрутите таблицу на узком экране.</p>
+                  </div>
+                  <div class="dashboard-table-wrap weekly-schedule-wrapper">
+                    <table class="ui celled striped compact table weekly-schedule-table dashboard-weekly-table">
+                      <thead>
+                        <tr>
+                          <th>Время</th>
+                          <th>Пн</th>
+                          <th>Вт</th>
+                          <th>Ср</th>
+                          <th>Чт</th>
+                          <th>Пт</th>
+                          <th>Сб</th>
+                          <th>Вс</th>
+                        </tr>
+                      </thead>
+                      <tbody id="home-schedule-table-body"></tbody>
+                    </table>
                   </div>
                 </div>
-                <div class="home-panel">
-                  <h3 class="ui header">Ближайшие уроки</h3>
-                  <div id="home-next-lessons" class="home-next-lessons-list"></div>
-                </div>
+
+                <aside class="dashboard-aside home-side-stack">
+                  <div class="dashboard-card ui segment">
+                    <div class="dashboard-card-head">
+                      <h3 class="ui header dashboard-card-title">Быстрые действия</h3>
+                      <p class="dashboard-card-hint">Переход к разделам в один клик</p>
+                    </div>
+                    <div class="home-quick-menu dashboard-quick-grid">
+                      <button type="button" class="quick-nav-button" data-go-section="classes">
+                        <span class="quick-nav-label">Классы</span>
+                        <span class="quick-nav-hint">Справочник классов</span>
+                      </button>
+                      <button type="button" class="quick-nav-button" data-go-section="students">
+                        <span class="quick-nav-label">Ученики</span>
+                        <span class="quick-nav-hint">Карточки учеников</span>
+                      </button>
+                      <button type="button" class="quick-nav-button" data-go-section="grades">
+                        <span class="quick-nav-label">Оценки</span>
+                        <span class="quick-nav-hint">Журнал оценок</span>
+                      </button>
+                      <button type="button" class="quick-nav-button" data-go-section="schedule">
+                        <span class="quick-nav-label">Расписание</span>
+                        <span class="quick-nav-hint">Конструктор</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="dashboard-card ui segment">
+                    <div class="dashboard-card-head">
+                      <h3 class="ui header dashboard-card-title">Следующие уроки</h3>
+                      <p class="dashboard-card-hint">До пяти ближайших слотов по расписанию</p>
+                    </div>
+                    <div id="home-next-lessons" class="home-next-lessons-list dashboard-next-list"></div>
+                  </div>
+                </aside>
               </div>
             </div>
           </section>

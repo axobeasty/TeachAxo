@@ -644,17 +644,20 @@ function renderHomeDashboard() {
   const nextLessonsContainer = document.getElementById("home-next-lessons");
 
   if (nextLessons.length === 0) {
-    nextLessonsContainer.innerHTML = `<div class="ui message">Пока нет уроков в расписании.</div>`;
+    nextLessonsContainer.innerHTML = `<div class="dashboard-empty">Пока нет уроков в расписании. Добавьте слоты в разделе «Расписание».</div>`;
     return;
   }
 
   nextLessonsContainer.innerHTML = nextLessons
     .map(
-      (entry) => `<div class="home-next-lesson">
-      <div class="title">${escapeHtml(entry.day)} • ${escapeHtml(entry.start)} - ${escapeHtml(entry.end)}</div>
-      <div>${escapeHtml(entry.subject)} (${escapeHtml(entry.className)})</div>
-      <div class="meta">Кабинет: ${escapeHtml(entry.room || "-")} ${entry.notes ? `• ${escapeHtml(entry.notes)}` : ""}</div>
-    </div>`
+      (entry, index) => `<article class="home-next-lesson dashboard-next-item">
+      <span class="dashboard-next-index" aria-hidden="true">${index + 1}</span>
+      <div class="dashboard-next-body">
+        <div class="title">${escapeHtml(entry.day)} · ${escapeHtml(entry.start)}–${escapeHtml(entry.end)}</div>
+        <div class="dashboard-next-subject">${escapeHtml(entry.subject)} <span class="dashboard-next-class">(${escapeHtml(entry.className)})</span></div>
+        <div class="meta">Кабинет: ${escapeHtml(entry.room || "-")}${entry.notes ? ` · ${escapeHtml(entry.notes)}` : ""}</div>
+      </div>
+    </article>`
     )
     .join("");
 }
