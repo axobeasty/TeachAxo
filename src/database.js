@@ -6,14 +6,39 @@ const mysql = require("mysql2/promise");
 const STATE_KEY = "app_state";
 
 class DatabaseService {
-  constructor(userDataPath) {
+  constructor(userDataPath, runtimeConfig = {}) {
     this.userDataPath = userDataPath;
     this.sqlitePath = path.join(userDataPath, "teachaxo.sqlite");
     this.SQL = null;
     this.db = null;
+    this.runtimeConfig = this.normalizeRuntimeConfig(runtimeConfig);
+    this.remoteConfig = null;
   }
 
   async init() {
+    if (this.runtimeConfig.mode === "remote") {
+      await this.initRemote();
+      return;
+    }
+    await this.initSqlite();
+  }
+
+  normalizeRuntimeConfig(config) {
+    const mode = config?.mode === "remote" ? "remote" : "local";
+    const remote = config?.remote || {};
+    return {
+      mode,
+      remote: {
+        host: String(remote.host || "").trim(),
+        port: String(remote.port || "3306").trim() || "3306",
+        user: String(remote.user || "").trim(),
+        password: remote.password || "",
+        database: String(remote.database || "").trim()
+      }
+    };
+  }
+
+  async initSqlite() {
     if (this.db) return;
     const wasmPath = require.resolve("sql.js/dist/sql-wasm.wasm");
     this.SQL = await initSqlJs({
@@ -34,6 +59,34 @@ class DatabaseService {
     this.persist();
   }
 
+  async initRemote() {
+    const remote = this.normalizeRemoteConfig({
+      mode: "remote",
+      remote: this.runtimeConfig.remote
+    });
+    this.remoteConfig = remote;
+    let connection;
+    try {
+      connection = await mysql.createConnection({
+        host: remote.host,
+        port: remote.port,
+        user: remote.user,
+        password: remote.password
+      });
+      await connection.query(`CREATE DATABASE IF NOT EXISTS \`${remote.database}\``);
+      await connection.query(`USE \`${remote.database}\``);
+      await connection.query(`CREATE TABLE IF NOT EXISTS teachaxo_state (
+        key_name VARCHAR(64) PRIMARY KEY,
+        value_json LONGTEXT NOT NULL,
+        updated_at DATETIME NOT NULL
+      )`);
+    } catch (error) {
+      throw this.formatMysqlError(error, remote);
+    } finally {
+      if (connection) await connection.end();
+    }
+  }
+
   persist() {
     if (!this.db) return;
     const data = this.db.export();
@@ -41,6 +94,9 @@ class DatabaseService {
   }
 
   getState() {
+    if (this.runtimeConfig.mode === "remote") {
+      throw new Error("Use getStateAsync for remote database mode.");
+    }
     const statement = this.db.prepare("SELECT value_json FROM kv_store WHERE key_name = ?");
     statement.bind([STATE_KEY]);
     const hasRow = statement.step();
@@ -50,6 +106,9 @@ class DatabaseService {
   }
 
   setState(stateObject) {
+    if (this.runtimeConfig.mode === "remote") {
+      throw new Error("Use setStateAsync for remote database mode.");
+    }
     const payload = JSON.stringify(stateObject);
     this.db.run(
       `INSERT INTO kv_store (key_name, value_json, updated_at)
@@ -60,6 +119,61 @@ class DatabaseService {
       [STATE_KEY, payload]
     );
     this.persist();
+  }
+
+  async getStateAsync() {
+    if (this.runtimeConfig.mode !== "remote") {
+      return this.getState();
+    }
+    const remote = this.remoteConfig || this.normalizeRemoteConfig({ mode: "remote", remote: this.runtimeConfig.remote });
+    let connection;
+    try {
+      connection = await mysql.createConnection({
+        host: remote.host,
+        port: remote.port,
+        user: remote.user,
+        password: remote.password,
+        database: remote.database
+      });
+      const [rows] = await connection.query(
+        "SELECT value_json FROM teachaxo_state WHERE key_name = ? LIMIT 1",
+        [STATE_KEY]
+      );
+      return rows?.[0]?.value_json || null;
+    } catch (error) {
+      throw this.formatMysqlError(error, remote);
+    } finally {
+      if (connection) await connection.end();
+    }
+  }
+
+  async setStateAsync(stateObject) {
+    if (this.runtimeConfig.mode !== "remote") {
+      this.setState(stateObject);
+      return;
+    }
+    const remote = this.remoteConfig || this.normalizeRemoteConfig({ mode: "remote", remote: this.runtimeConfig.remote });
+    let connection;
+    try {
+      connection = await mysql.createConnection({
+        host: remote.host,
+        port: remote.port,
+        user: remote.user,
+        password: remote.password,
+        database: remote.database
+      });
+      const payload = JSON.stringify(stateObject);
+      await connection.query(
+        `INSERT INTO teachaxo_state (key_name, value_json, updated_at)
+         VALUES (?, ?, NOW())
+         ON DUPLICATE KEY UPDATE value_json = VALUES(value_json), updated_at = VALUES(updated_at)`,
+        [STATE_KEY, payload]
+      );
+    } catch (error) {
+      throw this.formatMysqlError(error, remote);
+    } finally {
+      if (connection) await connection.end();
+    }
   }
 
   normalizeRemoteConfig(config) {
@@ -137,7 +251,7 @@ class DatabaseService {
         updated_at DATETIME NOT NULL
       )`);
 
-      const stateJson = this.getState() || "{}";
+      const stateJson = (await this.getStateAsync()) || "{}";
       await connection.query(
         `INSERT INTO teachaxo_state (key_name, value_json, updated_at)
          VALUES (?, ?, NOW())
@@ -152,6 +266,14 @@ class DatabaseService {
   }
 
   getInfo() {
+    if (this.runtimeConfig.mode === "remote") {
+      return {
+        provider: "mysql",
+        sqlitePath: this.sqlitePath,
+        remoteHost: this.runtimeConfig.remote.host,
+        remoteDatabase: this.runtimeConfig.remote.database
+      };
+    }
     return {
       provider: "sqlite",
       sqlitePath: this.sqlitePath

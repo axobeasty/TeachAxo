@@ -58,6 +58,7 @@ const state = {
     message: "Проверка обновлений не выполнялась.",
     availableVersion: null
   },
+  updatePromptedVersion: null,
   searchQuery: "",
   classSearchQuery: ""
 };
@@ -567,10 +568,15 @@ function renderStatusBar() {
 
   const installButton = document.getElementById("statusbar-install-update");
   if (installButton) {
-    const hasUpdate = state.runtimeUpdate.state === "available" && Boolean(state.runtimeUpdate.availableVersion);
+    const hasUpdate =
+      (state.runtimeUpdate.state === "available" || state.runtimeUpdate.state === "downloaded") &&
+      Boolean(state.runtimeUpdate.availableVersion);
     installButton.classList.toggle("hidden", !hasUpdate);
     if (hasUpdate) {
-      installButton.textContent = `Обновить до ${state.runtimeUpdate.availableVersion}`;
+      installButton.textContent =
+        state.runtimeUpdate.state === "downloaded"
+          ? `Установить ${state.runtimeUpdate.availableVersion}`
+          : `Обновить до ${state.runtimeUpdate.availableVersion}`;
     } else {
       installButton.textContent = "Обновить";
     }
@@ -889,7 +895,7 @@ function setupDatabaseSettingsHandlers() {
     remoteFields.classList.toggle("hidden", !isRemote);
   });
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const { mode, localName, remote } = buildDatabaseConfigFromForm();
 
@@ -901,11 +907,17 @@ function setupDatabaseSettingsHandlers() {
 
     state.databaseConfig = { mode, localName, remote };
     saveState();
-    status.textContent =
-      mode === "local"
-        ? `Локальная база "${localName}" сохранена.`
-        : `Параметры удаленной базы ${remote.host}:${remote.port}/${remote.database} сохранены.`;
-    status.className = "ui tiny positive message";
+    try {
+      if (!window.teachAxoDb?.applyRuntimeConfig) {
+        throw new Error("Сервис применения настроек БД недоступен.");
+      }
+      status.textContent = "Применяем настройки БД и перезапускаем приложение...";
+      status.className = "ui tiny info message";
+      await window.teachAxoDb.applyRuntimeConfig({ mode, remote });
+    } catch (error) {
+      status.textContent = `Ошибка применения настроек БД: ${error.message}`;
+      status.className = "ui tiny red message";
+    }
   });
 
   testConnectionButton.addEventListener("click", async () => {
@@ -960,6 +972,25 @@ function setupStatusBarHandlers() {
       availableVersion: payload?.availableVersion || null
     };
     renderStatusBar();
+
+    const canPromptInstall =
+      state.runtimeUpdate.state === "downloaded" &&
+      state.runtimeUpdate.availableVersion &&
+      state.updatePromptedVersion !== state.runtimeUpdate.availableVersion;
+    if (!canPromptInstall) return;
+
+    state.updatePromptedVersion = state.runtimeUpdate.availableVersion;
+    const shouldInstallNow = window.confirm(
+      `Обновление ${state.runtimeUpdate.availableVersion} уже загружено. Установить сейчас?`
+    );
+    if (!shouldInstallNow || !window.teachAxo?.installUpdate) return;
+    window.teachAxo.installUpdate().catch((error) => {
+      applyUpdateStatus({
+        state: "error",
+        message: `Ошибка запуска обновления: ${error.message}`,
+        availableVersion: state.runtimeUpdate.availableVersion
+      });
+    });
   };
 
   if (window.teachAxo?.onUpdateStatus) {

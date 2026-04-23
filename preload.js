@@ -15,5 +15,6 @@ contextBridge.exposeInMainWorld("teachAxoDb", {
   saveState: (state) => ipcRenderer.invoke("db:save-state", state),
   getInfo: () => ipcRenderer.invoke("db:get-info"),
   migrateToMysql: (config) => ipcRenderer.invoke("db:migrate-mysql", config),
-  testMysqlConnection: (config) => ipcRenderer.invoke("db:test-mysql", config)
+  testMysqlConnection: (config) => ipcRenderer.invoke("db:test-mysql", config),
+  applyRuntimeConfig: (config) => ipcRenderer.invoke("db:apply-runtime-config", config)
 });

@@ -14,6 +14,8 @@ let updateInProgress = false;
 let dbService = null;
 let latestAvailableVersion = null;
 let runtimeUpdateTimer = null;
+let runtimeCheckInFlight = false;
+let preparedUpdate = null;
 let cachedUpdateStatus = {
   state: "idle",
   message: "Проверка обновлений не выполнялась.",
@@ -21,6 +23,37 @@ let cachedUpdateStatus = {
 };
 let runtimeCheckForUpdates = async () => cachedUpdateStatus;
 let runtimeInstallUpdate = async () => ({ ok: false, message: "Обновление недоступно." });
+const DB_RUNTIME_CONFIG_FILE = "db-runtime-config.json";
+
+function getDbRuntimeConfigPath(userDataPath) {
+  return path.join(userDataPath, DB_RUNTIME_CONFIG_FILE);
+}
+
+function loadDbRuntimeConfig(userDataPath) {
+  const configPath = getDbRuntimeConfigPath(userDataPath);
+  if (!fs.existsSync(configPath)) {
+    return { mode: "local" };
+  }
+  try {
+    const raw = fs.readFileSync(configPath, "utf-8");
+    const parsed = JSON.parse(raw);
+    return {
+      mode: parsed?.mode === "remote" ? "remote" : "local",
+      remote: parsed?.remote || {}
+    };
+  } catch (_error) {
+    return { mode: "local" };
+  }
+}
+
+function saveDbRuntimeConfig(userDataPath, config) {
+  const configPath = getDbRuntimeConfigPath(userDataPath);
+  const safeConfig = {
+    mode: config?.mode === "remote" ? "remote" : "local",
+    remote: config?.remote || {}
+  };
+  fs.writeFileSync(configPath, JSON.stringify(safeConfig, null, 2), "utf-8");
+}
 
 function createMainWindow() {
   if (mainWindow) return;
@@ -260,7 +293,7 @@ function setupAutoUpdateFlow() {
     return null;
   };
 
-  const downloadAndInstallArchive = async (version) => {
+  const downloadAndPrepareArchive = async (version) => {
     const archiveName = getUpdateArchiveName(version);
     const archiveUrl = `https://github.com/${repoOwner}/${repoName}/releases/download/v${version}/${archiveName}`;
     const tempDir = path.join(app.getPath("temp"), `teachaxo-update-${version}`);
@@ -299,15 +332,26 @@ function setupAutoUpdateFlow() {
     if (!installerPath) {
       throw new Error("В архиве не найден установщик .exe");
     }
+    return { version, archivePath, unpackDir, installerPath };
+  };
 
+  const installPreparedUpdate = async (prepared) => {
+    if (!prepared?.installerPath) {
+      throw new Error("Обновление не подготовлено для установки.");
+    }
     sendUpdaterStatus("installing", "Запускаем установку обновления...");
     // Run installer without silent flag so NSIS can execute standard post-install launch flow.
-    const child = spawn(installerPath, [], {
+    const child = spawn(prepared.installerPath, [], {
       detached: true,
       stdio: "ignore"
     });
     child.unref();
     app.quit();
+  };
+
+  const downloadAndInstallArchive = async (version) => {
+    const prepared = await downloadAndPrepareArchive(version);
+    await installPreparedUpdate(prepared);
   };
 
   const checkForAvailableVersion = async () => {
@@ -327,7 +371,8 @@ function setupAutoUpdateFlow() {
       });
       return cachedUpdateStatus;
     }
-    if (updateInProgress) return cachedUpdateStatus;
+    if (updateInProgress || runtimeCheckInFlight) return cachedUpdateStatus;
+    runtimeCheckInFlight = true;
 
     sendMainUpdateStatus({
       state: "checking",
@@ -341,11 +386,27 @@ function setupAutoUpdateFlow() {
         latestAvailableVersion = availableVersion;
         sendMainUpdateStatus({
           state: "available",
-          message: `Доступно обновление ${availableVersion}. Нажмите "Обновить".`,
+          message: `Найдено обновление ${availableVersion}. Загружаем в фоне...`,
           availableVersion
         });
+        try {
+          const prepared = await downloadAndPrepareArchive(availableVersion);
+          preparedUpdate = prepared;
+          sendMainUpdateStatus({
+            state: "downloaded",
+            message: `Обновление ${availableVersion} загружено. Можно установить.`,
+            availableVersion
+          });
+        } catch (downloadError) {
+          sendMainUpdateStatus({
+            state: "error",
+            message: `Ошибка загрузки обновления: ${downloadError.message}`,
+            availableVersion
+          });
+        }
       } else {
         latestAvailableVersion = null;
+        preparedUpdate = null;
         sendMainUpdateStatus({
           state: "up-to-date",
           message: "Установлена последняя версия.",
@@ -358,12 +419,19 @@ function setupAutoUpdateFlow() {
         message: `Ошибка проверки обновлений: ${error.message}`,
         availableVersion: latestAvailableVersion
       });
+    } finally {
+      runtimeCheckInFlight = false;
     }
     return cachedUpdateStatus;
   };
 
   runtimeInstallUpdate = async () => {
     if (updateInProgress) return { ok: false, message: "Обновление уже выполняется." };
+    if (preparedUpdate?.installerPath) {
+      updateInProgress = true;
+      await installPreparedUpdate(preparedUpdate);
+      return { ok: true };
+    }
     if (!latestAvailableVersion) {
       await runtimeCheckForUpdates();
     }
@@ -373,7 +441,9 @@ function setupAutoUpdateFlow() {
 
     updateInProgress = true;
     try {
-      await downloadAndInstallArchive(latestAvailableVersion);
+      const prepared = await downloadAndPrepareArchive(latestAvailableVersion);
+      preparedUpdate = prepared;
+      await installPreparedUpdate(prepared);
       return { ok: true };
     } catch (error) {
       updateInProgress = false;
@@ -390,9 +460,10 @@ function setupAutoUpdateFlow() {
     if (runtimeUpdateTimer) {
       clearInterval(runtimeUpdateTimer);
     }
+    // Lightweight background polling: once per 30 minutes with guarded single-flight checks.
     runtimeUpdateTimer = setInterval(() => {
       runtimeCheckForUpdates().catch(() => {});
-    }, 10 * 60 * 1000);
+    }, 30 * 60 * 1000);
   };
 
   sendUpdaterStatus("checking", "Проверяем наличие обновлений...");
@@ -446,12 +517,12 @@ function setupAutoUpdateFlow() {
 
 function registerDatabaseIpcHandlers() {
   ipcMain.handle("db:get-state", async () => {
-    const raw = dbService.getState();
+    const raw = await dbService.getStateAsync();
     return raw ? JSON.parse(raw) : null;
   });
 
   ipcMain.handle("db:save-state", async (_event, state) => {
-    dbService.setState(state || {});
+    await dbService.setStateAsync(state || {});
     return { ok: true };
   });
 
@@ -464,6 +535,22 @@ function registerDatabaseIpcHandlers() {
 
   ipcMain.handle("db:test-mysql", async (_event, config) => {
     await dbService.testMysqlConnection(config || {});
+    return { ok: true };
+  });
+
+  ipcMain.handle("db:apply-runtime-config", async (_event, config) => {
+    const safeConfig = {
+      mode: config?.mode === "remote" ? "remote" : "local",
+      remote: config?.remote || {}
+    };
+    if (safeConfig.mode === "remote") {
+      await dbService.testMysqlConnection(safeConfig);
+    }
+    saveDbRuntimeConfig(app.getPath("userData"), safeConfig);
+    setTimeout(() => {
+      app.relaunch();
+      app.exit(0);
+    }, 100);
     return { ok: true };
   });
 
@@ -493,7 +580,9 @@ function registerDatabaseIpcHandlers() {
 }
 
 app.whenReady().then(() => {
-  dbService = new DatabaseService(app.getPath("userData"));
+  const userDataPath = app.getPath("userData");
+  const runtimeDbConfig = loadDbRuntimeConfig(userDataPath);
+  dbService = new DatabaseService(userDataPath, runtimeDbConfig);
   dbService
     .init()
     .then(() => {
