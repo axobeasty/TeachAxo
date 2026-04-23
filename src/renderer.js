@@ -250,6 +250,40 @@ function renderSchedule() {
     .join("");
 }
 
+function getCurrentUserScheduleEntries() {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return [];
+  return state.schedule.filter(
+    (entry) => entry.userId === currentUser.id || !entry.userId
+  );
+}
+
+function renderHomeSchedule() {
+  const tbody = document.getElementById("home-schedule-table-body");
+  const sorted = [...getCurrentUserScheduleEntries()].sort((a, b) => {
+    const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+    return dayDiff !== 0 ? dayDiff : a.start.localeCompare(b.start);
+  });
+
+  if (sorted.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="center aligned">У вас пока нет записей в расписании.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = sorted
+    .map(
+      (entry) => `<tr>
+        <td>${escapeHtml(entry.day)}</td>
+        <td>${escapeHtml(entry.start)} - ${escapeHtml(entry.end)}</td>
+        <td>${escapeHtml(entry.className)}</td>
+        <td>${escapeHtml(entry.subject)}</td>
+        <td>${escapeHtml(entry.room || "-")}</td>
+        <td>${escapeHtml(entry.notes || "-")}</td>
+      </tr>`
+    )
+    .join("");
+}
+
 function renderRoles() {
   const tbody = document.getElementById("roles-table-body");
   tbody.innerHTML = state.roles
@@ -288,6 +322,7 @@ function renderAll() {
   renderGradeStudentsDropdown();
   renderGrades();
   renderSchedule();
+  renderHomeSchedule();
   renderRoles();
   renderUsers();
   applyAccessControl();
@@ -406,10 +441,21 @@ function setupScheduleHandlers() {
       alert("Время начала должно быть раньше времени окончания.");
       return;
     }
-    state.schedule.push({ id: uid(), day, start, end, className, subject, room, notes });
+    state.schedule.push({
+      id: uid(),
+      userId: state.currentUserId,
+      day,
+      start,
+      end,
+      className,
+      subject,
+      room,
+      notes
+    });
     form.reset();
     saveState();
     renderSchedule();
+    renderHomeSchedule();
   });
   document.getElementById("schedule-table-body").addEventListener("click", (event) => {
     if (!requirePermission("manage_schedule")) return;
@@ -418,6 +464,7 @@ function setupScheduleHandlers() {
     state.schedule = state.schedule.filter((entry) => entry.id !== entryId);
     saveState();
     renderSchedule();
+    renderHomeSchedule();
   });
 }
 
