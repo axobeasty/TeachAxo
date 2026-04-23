@@ -528,122 +528,149 @@
           </section>
 
           <section class="section page-card" data-section-panel="settings">
-            <h2 class="ui header">Настройки</h2>
-            <div class="ui stackable two column grid">
-              <div class="column">
-                <div class="ui segment">
+            <div class="settings-page">
+              <div class="settings-page-head">
+                <h2 class="ui header">Настройки</h2>
+                <p>Управление приложением, базой данных, внешним видом и историей обновлений.</p>
+              </div>
+
+              <div class="settings-overview-grid">
+                <div class="ui segment settings-card">
                   <h3 class="ui header">Информация о приложении</h3>
-                  <p>Текущая версия: <strong id="settings-app-version">-</strong></p>
-                  <p>Сборка: <strong id="settings-build-version">-</strong></p>
-                  <p>Отображаемая версия: <strong id="settings-version-label">-</strong></p>
+                  <div class="settings-kv-row">
+                    <span>Текущая версия</span>
+                    <strong id="settings-app-version">-</strong>
+                  </div>
+                  <div class="settings-kv-row">
+                    <span>Сборка</span>
+                    <strong id="settings-build-version">-</strong>
+                  </div>
+                  <div class="settings-kv-row">
+                    <span>Отображаемая версия</span>
+                    <strong id="settings-version-label">-</strong>
+                  </div>
                 </div>
-              </div>
-              <div class="column">
-                <div class="ui segment">
+                <div class="ui segment settings-card">
                   <h3 class="ui header">Профиль сессии</h3>
-                  <p>Текущий пользователь: <strong id="settings-current-user">-</strong></p>
-                  <p>Роль: <strong id="settings-current-role">-</strong></p>
+                  <div class="settings-kv-row">
+                    <span>Текущий пользователь</span>
+                    <strong id="settings-current-user">-</strong>
+                  </div>
+                  <div class="settings-kv-row">
+                    <span>Роль</span>
+                    <strong id="settings-current-role">-</strong>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div class="ui segment">
-              <h3 class="ui header">Источник данных</h3>
-              <p>Текущее хранилище: <strong id="settings-storage-provider">SQLite</strong></p>
-              <p>Файл БД: <code id="settings-sqlite-path">-</code></p>
-              <form id="database-settings-form" class="ui form">
-                <div class="field">
-                  <label>Тип базы данных</label>
-                  <select id="database-mode" required>
-                    <option value="local">Локальная база данных</option>
-                    <option value="remote">Удаленная база данных</option>
-                  </select>
+              <div class="ui segment settings-card">
+                <h3 class="ui header">Источник данных</h3>
+                <div class="settings-kv-row">
+                  <span>Текущее хранилище</span>
+                  <strong id="settings-storage-provider">SQLite</strong>
                 </div>
-
-                <div id="database-local-fields">
+                <div class="settings-kv-row">
+                  <span>Файл БД</span>
+                  <code id="settings-sqlite-path">-</code>
+                </div>
+                <form id="database-settings-form" class="ui form settings-form-block">
                   <div class="field">
-                    <label>Имя локальной базы</label>
-                    <input type="text" id="database-local-name" placeholder="teachaxo_local.db" />
+                    <label>Тип базы данных</label>
+                    <select id="database-mode" required>
+                      <option value="local">Локальная база данных</option>
+                      <option value="remote">Удаленная база данных</option>
+                    </select>
                   </div>
-                </div>
 
-                <div id="database-remote-fields" class="hidden">
-                  <div class="two fields">
+                  <div id="database-local-fields">
                     <div class="field">
-                      <label>Host</label>
-                      <input type="text" id="database-remote-host" placeholder="127.0.0.1" />
-                    </div>
-                    <div class="field">
-                      <label>Port</label>
-                      <input type="number" id="database-remote-port" placeholder="3306" />
+                      <label>Имя локальной базы</label>
+                      <input type="text" id="database-local-name" placeholder="teachaxo_local.db" />
                     </div>
                   </div>
-                  <div class="two fields">
-                    <div class="field">
-                      <label>Пользователь</label>
-                      <input type="text" id="database-remote-user" placeholder="db_user" />
+
+                  <div id="database-remote-fields" class="hidden">
+                    <div class="two fields">
+                      <div class="field">
+                        <label>Host</label>
+                        <input type="text" id="database-remote-host" placeholder="127.0.0.1" />
+                      </div>
+                      <div class="field">
+                        <label>Port</label>
+                        <input type="number" id="database-remote-port" placeholder="3306" />
+                      </div>
+                    </div>
+                    <div class="two fields">
+                      <div class="field">
+                        <label>Пользователь</label>
+                        <input type="text" id="database-remote-user" placeholder="db_user" />
+                      </div>
+                      <div class="field">
+                        <label>Пароль</label>
+                        <input type="password" id="database-remote-password" placeholder="••••••" />
+                      </div>
                     </div>
                     <div class="field">
-                      <label>Пароль</label>
-                      <input type="password" id="database-remote-password" placeholder="••••••" />
+                      <label>Имя базы данных</label>
+                      <input type="text" id="database-remote-name" placeholder="teachaxo" />
                     </div>
                   </div>
-                  <div class="field">
-                    <label>Имя базы данных</label>
-                    <input type="text" id="database-remote-name" placeholder="teachaxo" />
+
+                  <div class="settings-actions">
+                    <button class="ui primary button" type="submit">Сохранить параметры БД</button>
+                    <button class="ui button" id="database-test-connection-button" type="button">
+                      Проверить подключение к базе данных
+                    </button>
+                    <button class="ui button" id="database-migrate-button" type="button">
+                      Мигрировать текущие данные в MySQL
+                    </button>
                   </div>
-                </div>
-                <button class="ui primary button" type="submit">Сохранить параметры БД</button>
-                <button class="ui button" id="database-test-connection-button" type="button">
-                  Проверить подключение к базе данных
-                </button>
-                <button class="ui button" id="database-migrate-button" type="button">
-                  Мигрировать текущие данные в MySQL
-                </button>
-              </form>
-              <div id="database-settings-status" class="ui tiny message hidden"></div>
-            </div>
-
-            <div class="ui info message">
-              Можно использовать локальную базу на этом устройстве или хранить данные в удаленной БД.
-            </div>
-
-            <div class="ui segment">
-              <h3 class="ui header">Внешний вид</h3>
-              <form id="app-appearance-form" class="ui form">
-                <div class="field">
-                  <label>Иконка приложения (окно)</label>
-                  <div class="ui action input">
-                    <input type="text" id="app-icon-path" placeholder="Путь к .ico/.png/.jpg" readonly />
-                    <button class="ui button" id="app-icon-browse" type="button">Выбрать</button>
-                  </div>
-                </div>
-                <button class="ui primary button" type="submit">Применить иконку</button>
-              </form>
-              <div id="app-appearance-status" class="ui tiny message hidden"></div>
-            </div>
-
-            <div class="ui segment">
-              <h3 class="ui header">Что нового в текущей версии</h3>
-              <div class="ui stackable three column grid">
-                <div class="column">
-                  <h4 class="ui small header">Добавлено</h4>
-                  <ul id="current-version-added" class="ui list"></ul>
-                </div>
-                <div class="column">
-                  <h4 class="ui small header">Изменено</h4>
-                  <ul id="current-version-changed" class="ui list"></ul>
-                </div>
-                <div class="column">
-                  <h4 class="ui small header">Убрано</h4>
-                  <ul id="current-version-removed" class="ui list"></ul>
+                </form>
+                <div id="database-settings-status" class="ui tiny message hidden"></div>
+                <div class="ui info message settings-note">
+                  Можно использовать локальную базу на этом устройстве или хранить данные в удаленной БД.
                 </div>
               </div>
-            </div>
 
-            <div class="ui segment">
-              <h3 class="ui header">Лог изменений по версиям</h3>
-              <div id="version-history-log" class="ui relaxed divided list"></div>
+              <div class="ui segment settings-card">
+                <h3 class="ui header">Внешний вид</h3>
+                <form id="app-appearance-form" class="ui form settings-form-block">
+                  <div class="field">
+                    <label>Иконка приложения (окно)</label>
+                    <div class="ui action input">
+                      <input type="text" id="app-icon-path" placeholder="Путь к .ico/.png/.jpg" readonly />
+                      <button class="ui button" id="app-icon-browse" type="button">Выбрать</button>
+                    </div>
+                  </div>
+                  <div class="settings-actions">
+                    <button class="ui primary button" type="submit">Применить иконку</button>
+                  </div>
+                </form>
+                <div id="app-appearance-status" class="ui tiny message hidden"></div>
+              </div>
+
+              <div class="ui segment settings-card">
+                <h3 class="ui header">Что нового в текущей версии</h3>
+                <div class="ui stackable three column grid">
+                  <div class="column">
+                    <h4 class="ui small header">Добавлено</h4>
+                    <ul id="current-version-added" class="ui list"></ul>
+                  </div>
+                  <div class="column">
+                    <h4 class="ui small header">Изменено</h4>
+                    <ul id="current-version-changed" class="ui list"></ul>
+                  </div>
+                  <div class="column">
+                    <h4 class="ui small header">Убрано</h4>
+                    <ul id="current-version-removed" class="ui list"></ul>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ui segment settings-card">
+                <h3 class="ui header">Лог изменений по версиям</h3>
+                <div id="version-history-log" class="ui relaxed divided list"></div>
+              </div>
             </div>
           </section>
         </main>
