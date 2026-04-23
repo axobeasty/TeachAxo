@@ -554,9 +554,23 @@ function registerDatabaseIpcHandlers() {
       mode: config?.mode === "remote" ? "remote" : "local",
       remote: config?.remote || {}
     };
+
+    // Migrate current app state into target storage before relaunch,
+    // so data always lives in the selected backend (SQLite or MySQL).
+    const currentStateRaw = await dbService.getStateAsync();
+    const currentState = currentStateRaw ? JSON.parse(currentStateRaw) : {};
+
     if (safeConfig.mode === "remote") {
       await dbService.testMysqlConnection(safeConfig);
+      const remoteService = new DatabaseService(app.getPath("userData"), safeConfig);
+      await remoteService.init();
+      await remoteService.setStateAsync(currentState);
+    } else {
+      const localService = new DatabaseService(app.getPath("userData"), { mode: "local" });
+      await localService.init();
+      await localService.setStateAsync(currentState);
     }
+
     saveDbRuntimeConfig(app.getPath("userData"), safeConfig);
     setTimeout(() => {
       app.relaunch();

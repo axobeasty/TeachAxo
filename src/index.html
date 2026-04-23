@@ -580,7 +580,25 @@
 
             <div class="ui segment">
               <h3 class="ui header">Что нового в текущей версии</h3>
-              <ul id="current-version-changelog" class="ui list"></ul>
+              <div class="ui stackable three column grid">
+                <div class="column">
+                  <h4 class="ui small header">Добавлено</h4>
+                  <ul id="current-version-added" class="ui list"></ul>
+                </div>
+                <div class="column">
+                  <h4 class="ui small header">Изменено</h4>
+                  <ul id="current-version-changed" class="ui list"></ul>
+                </div>
+                <div class="column">
+                  <h4 class="ui small header">Убрано</h4>
+                  <ul id="current-version-removed" class="ui list"></ul>
+                </div>
+              </div>
+            </div>
+
+            <div class="ui segment">
+              <h3 class="ui header">Лог изменений по версиям</h3>
+              <div id="version-history-log" class="ui relaxed divided list"></div>
             </div>
           </section>
         </main>

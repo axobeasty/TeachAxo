@@ -1,5 +1,3 @@
-const LEGACY_STORAGE_KEY = "teachaxo_data_v2";
-
 const PERMISSIONS = {
   manage_classes: "Управление классами",
   manage_students: "Управление учениками",
@@ -64,12 +62,45 @@ const state = {
 };
 
 const dayOrder = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
-const CURRENT_VERSION_CHANGELOG = [
-  "Ускорено автообновление за счет параллельного скачивания архива.",
-  "Приложение работает в режиме SQLite-only для хранения данных.",
-  "Добавлена миграция данных в удаленную MySQL из настроек.",
-  "Обновлен SPA-интерфейс с боковой навигацией и улучшенной сеткой."
-];
+const VERSION_CHANGELOG = {
+  "1.0.21": {
+    added: [
+      "Безопасный fallback: при недоступной удаленной БД приложение автоматически переключается на SQLite при запуске."
+    ],
+    changed: [
+      "Стабилизирован старт приложения после смены источника данных.",
+      "Проблемный runtime-конфиг БД теперь сохраняется в backup-файл для диагностики."
+    ],
+    removed: []
+  },
+  "1.0.20": {
+    added: [
+      "Новая страница профиля пользователя с редактированием логина и пароля."
+    ],
+    changed: [
+      "Навигация обновлена: добавлен отдельный пункт 'Профиль'."
+    ],
+    removed: []
+  },
+  "1.0.19": {
+    added: [
+      "Расширенные адаптивные сценарии для разных типов экранов (включая ultra-wide и low-height)."
+    ],
+    changed: [
+      "Улучшены сетки, поведение сайдбара, таблиц и форм на узких экранах."
+    ],
+    removed: []
+  },
+  "1.0.18": {
+    added: [
+      "Переключение runtime-хранилища между SQLite и удаленной БД с перезапуском приложения."
+    ],
+    changed: [
+      "Фоновая проверка обновлений оптимизирована (редкий polling, загрузка в фоне, предложение установки)."
+    ],
+    removed: []
+  }
+};
 
 function uid() {
   return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -174,16 +205,6 @@ function applyLoadedState(parsed) {
   };
 }
 
-function readLegacyLocalStorageState() {
-  const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch (_error) {
-    return null;
-  }
-}
-
 async function loadState() {
   try {
     if (!window.teachAxoDb?.getState || !window.teachAxoDb?.saveState) {
@@ -193,25 +214,6 @@ async function loadState() {
     const dbState = await window.teachAxoDb.getState();
     if (dbState) {
       applyLoadedState(dbState);
-    } else {
-      // One-time migration for users who had data in old localStorage builds.
-      const legacyState = readLegacyLocalStorageState();
-      if (legacyState) {
-        applyLoadedState(legacyState);
-        await window.teachAxoDb.saveState({
-          classes: state.classes,
-          students: state.students,
-          grades: state.grades,
-          schedule: state.schedule,
-          scheduleSettings: state.scheduleSettings,
-          databaseConfig: state.databaseConfig,
-          roles: state.roles,
-          users: state.users,
-          currentUserId: state.currentUserId,
-          auth: state.auth
-        });
-        localStorage.removeItem(LEGACY_STORAGE_KEY);
-      }
     }
 
     const info = await window.teachAxoDb.getInfo();
@@ -505,8 +507,41 @@ function renderSettingsPage() {
   document.getElementById("settings-sqlite-path").textContent = state.storageInfo.sqlitePath || "-";
   document.getElementById("home-current-version").textContent = versionLabel;
 
-  document.getElementById("current-version-changelog").innerHTML = CURRENT_VERSION_CHANGELOG
-    .map((item) => `<li>${escapeHtml(item)}</li>`)
+  const currentVersionKey = normalizeVersionValue(state.appMeta.appVersion, "0.0.0");
+  const currentChangeEntry = VERSION_CHANGELOG[currentVersionKey] || {
+    added: [],
+    changed: [],
+    removed: []
+  };
+  const renderCategory = (items) =>
+    items.length ? items.map((item) => `<li>${escapeHtml(item)}</li>`).join("") : "<li>—</li>";
+
+  document.getElementById("current-version-added").innerHTML = renderCategory(currentChangeEntry.added);
+  document.getElementById("current-version-changed").innerHTML = renderCategory(currentChangeEntry.changed);
+  document.getElementById("current-version-removed").innerHTML = renderCategory(currentChangeEntry.removed);
+
+  const sortedVersions = Object.keys(VERSION_CHANGELOG).sort((a, b) => {
+    const pa = a.split(".").map(Number);
+    const pb = b.split(".").map(Number);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+      const diff = (pb[i] || 0) - (pa[i] || 0);
+      if (diff !== 0) return diff;
+    }
+    return 0;
+  });
+  document.getElementById("version-history-log").innerHTML = sortedVersions
+    .map((version) => {
+      const entry = VERSION_CHANGELOG[version];
+      const added = entry.added.length ? `<li><strong>Добавлено:</strong> ${escapeHtml(entry.added.join("; "))}</li>` : "";
+      const changed = entry.changed.length ? `<li><strong>Изменено:</strong> ${escapeHtml(entry.changed.join("; "))}</li>` : "";
+      const removed = entry.removed.length ? `<li><strong>Убрано:</strong> ${escapeHtml(entry.removed.join("; "))}</li>` : "";
+      return `<div class="item">
+        <div class="content">
+          <div class="header">Версия ${escapeHtml(version)}</div>
+          <ul class="ui list">${added}${changed}${removed}</ul>
+        </div>
+      </div>`;
+    })
     .join("");
 
   document.getElementById("database-mode").value = state.databaseConfig.mode;
