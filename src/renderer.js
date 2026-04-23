@@ -26,6 +26,17 @@ const state = {
     firstLessonStart: "08:00",
     lessonDurationMin: 45
   },
+  databaseConfig: {
+    mode: "local",
+    localName: "teachaxo_local.db",
+    remote: {
+      host: "",
+      port: "5432",
+      user: "",
+      password: "",
+      database: ""
+    }
+  },
   roles: [],
   users: [],
   currentUserId: null,
@@ -108,6 +119,17 @@ function loadState() {
       firstLessonStart: parsed.scheduleSettings?.firstLessonStart || "08:00",
       lessonDurationMin: Number(parsed.scheduleSettings?.lessonDurationMin) || 45
     };
+    state.databaseConfig = {
+      mode: parsed.databaseConfig?.mode === "remote" ? "remote" : "local",
+      localName: parsed.databaseConfig?.localName || "teachaxo_local.db",
+      remote: {
+        host: parsed.databaseConfig?.remote?.host || "",
+        port: parsed.databaseConfig?.remote?.port || "5432",
+        user: parsed.databaseConfig?.remote?.user || "",
+        password: parsed.databaseConfig?.remote?.password || "",
+        database: parsed.databaseConfig?.remote?.database || ""
+      }
+    };
     state.roles = Array.isArray(parsed.roles) ? parsed.roles : [];
     state.users = Array.isArray(parsed.users) ? parsed.users : [];
     state.currentUserId = parsed.currentUserId ?? null;
@@ -125,6 +147,7 @@ function saveState() {
       grades: state.grades,
       schedule: state.schedule,
       scheduleSettings: state.scheduleSettings,
+      databaseConfig: state.databaseConfig,
       roles: state.roles,
       users: state.users,
       currentUserId: state.currentUserId
@@ -387,6 +410,18 @@ function renderSettingsPage() {
   document.getElementById("settings-build-version").textContent = buildVersion;
   document.getElementById("settings-current-user").textContent = currentUser?.username || "-";
   document.getElementById("settings-current-role").textContent = currentRole?.name || "Без роли";
+
+  document.getElementById("database-mode").value = state.databaseConfig.mode;
+  document.getElementById("database-local-name").value = state.databaseConfig.localName;
+  document.getElementById("database-remote-host").value = state.databaseConfig.remote.host;
+  document.getElementById("database-remote-port").value = state.databaseConfig.remote.port;
+  document.getElementById("database-remote-user").value = state.databaseConfig.remote.user;
+  document.getElementById("database-remote-password").value = state.databaseConfig.remote.password;
+  document.getElementById("database-remote-name").value = state.databaseConfig.remote.database;
+
+  const isRemote = state.databaseConfig.mode === "remote";
+  document.getElementById("database-local-fields").classList.toggle("hidden", isRemote);
+  document.getElementById("database-remote-fields").classList.toggle("hidden", !isRemote);
 }
 
 function renderRoles() {
@@ -703,6 +738,47 @@ function setupAccessHandlers() {
   });
 }
 
+function setupDatabaseSettingsHandlers() {
+  const form = document.getElementById("database-settings-form");
+  const modeSelect = document.getElementById("database-mode");
+  const localFields = document.getElementById("database-local-fields");
+  const remoteFields = document.getElementById("database-remote-fields");
+  const status = document.getElementById("database-settings-status");
+
+  modeSelect.addEventListener("change", () => {
+    const isRemote = modeSelect.value === "remote";
+    localFields.classList.toggle("hidden", isRemote);
+    remoteFields.classList.toggle("hidden", !isRemote);
+  });
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const mode = modeSelect.value === "remote" ? "remote" : "local";
+    const localName = document.getElementById("database-local-name").value.trim() || "teachaxo_local.db";
+    const remote = {
+      host: document.getElementById("database-remote-host").value.trim(),
+      port: document.getElementById("database-remote-port").value.trim(),
+      user: document.getElementById("database-remote-user").value.trim(),
+      password: document.getElementById("database-remote-password").value,
+      database: document.getElementById("database-remote-name").value.trim()
+    };
+
+    if (mode === "remote" && (!remote.host || !remote.port || !remote.user || !remote.database)) {
+      status.textContent = "Для удаленной базы заполните host, port, пользователя и имя БД.";
+      status.className = "ui tiny red message";
+      return;
+    }
+
+    state.databaseConfig = { mode, localName, remote };
+    saveState();
+    status.textContent =
+      mode === "local"
+        ? `Локальная база "${localName}" сохранена.`
+        : `Параметры удаленной базы ${remote.host}:${remote.port}/${remote.database} сохранены.`;
+    status.className = "ui tiny positive message";
+  });
+}
+
 function buildPrintablePage(title, contentHtml) {
   return `<!doctype html><html lang="ru"><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
   body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
@@ -822,6 +898,7 @@ function init() {
   setupGradesHandlers();
   setupScheduleHandlers();
   setupAccessHandlers();
+  setupDatabaseSettingsHandlers();
   setupPrintHandlers();
   setupAuthHandlers();
 }

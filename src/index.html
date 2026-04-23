@@ -62,79 +62,69 @@
 
         <main class="app-content">
           <section class="section page-card active" data-section-panel="home">
-        <div class="home-hero ui segment">
-          <div class="home-hero-title">Панель преподавателя</div>
-          <div class="home-hero-subtitle" id="home-hero-subtitle">
-            Добро пожаловать в TeachAxo. Здесь собрана вся ключевая информация по классам, ученикам и урокам.
-          </div>
-        </div>
-
-        <div class="ui four stackable cards home-stats-grid">
-          <div class="card home-stat-card">
-            <div class="content">
-              <div class="meta">Классы</div>
-              <div class="header" id="home-stat-classes">0</div>
-            </div>
-          </div>
-          <div class="card home-stat-card">
-            <div class="content">
-              <div class="meta">Ученики</div>
-              <div class="header" id="home-stat-students">0</div>
-            </div>
-          </div>
-          <div class="card home-stat-card">
-            <div class="content">
-              <div class="meta">Оценки</div>
-              <div class="header" id="home-stat-grades">0</div>
-            </div>
-          </div>
-          <div class="card home-stat-card">
-            <div class="content">
-              <div class="meta">Уроки в расписании</div>
-              <div class="header" id="home-stat-schedule">0</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="ui stackable grid home-dashboard-grid">
-          <div class="ten wide column">
-            <div class="ui segment home-panel">
-              <h3 class="ui header">Мое расписание на неделю</h3>
-              <div class="weekly-schedule-wrapper">
-                <table class="ui celled striped table weekly-schedule-table">
-                  <thead>
-                    <tr>
-                      <th>Время</th>
-                      <th>Понедельник</th>
-                      <th>Вторник</th>
-                      <th>Среда</th>
-                      <th>Четверг</th>
-                      <th>Пятница</th>
-                      <th>Суббота</th>
-                      <th>Воскресенье</th>
-                    </tr>
-                  </thead>
-                  <tbody id="home-schedule-table-body"></tbody>
-                </table>
+            <div class="home-hero">
+              <div class="home-hero-title">Панель преподавателя</div>
+              <div class="home-hero-subtitle" id="home-hero-subtitle">
+                Добро пожаловать в TeachAxo. Здесь собрана вся ключевая информация по классам, ученикам и урокам.
               </div>
             </div>
-          </div>
-          <div class="six wide column">
-            <div class="ui segment home-panel">
-              <h3 class="ui header">Быстрые действия</h3>
-              <div class="ui fluid vertical menu home-quick-menu">
-                <button class="item quick-nav-button" data-go-section="classes">Открыть классы</button>
-                <button class="item quick-nav-button" data-go-section="students">Открыть учеников</button>
-                <button class="item quick-nav-button" data-go-section="grades">Открыть оценки</button>
-                <button class="item quick-nav-button" data-go-section="schedule">Открыть расписание</button>
+
+            <div class="home-stats-grid">
+              <article class="home-stat-card">
+                <div class="meta">Классы</div>
+                <div class="value" id="home-stat-classes">0</div>
+              </article>
+              <article class="home-stat-card">
+                <div class="meta">Ученики</div>
+                <div class="value" id="home-stat-students">0</div>
+              </article>
+              <article class="home-stat-card">
+                <div class="meta">Оценки</div>
+                <div class="value" id="home-stat-grades">0</div>
+              </article>
+              <article class="home-stat-card">
+                <div class="meta">Уроки в расписании</div>
+                <div class="value" id="home-stat-schedule">0</div>
+              </article>
+            </div>
+
+            <div class="home-main-grid">
+              <div class="home-panel home-panel-large">
+                <h3 class="ui header">Мое расписание на неделю</h3>
+                <div class="weekly-schedule-wrapper">
+                  <table class="ui celled striped table weekly-schedule-table">
+                    <thead>
+                      <tr>
+                        <th>Время</th>
+                        <th>Понедельник</th>
+                        <th>Вторник</th>
+                        <th>Среда</th>
+                        <th>Четверг</th>
+                        <th>Пятница</th>
+                        <th>Суббота</th>
+                        <th>Воскресенье</th>
+                      </tr>
+                    </thead>
+                    <tbody id="home-schedule-table-body"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="home-side-stack">
+                <div class="home-panel">
+                  <h3 class="ui header">Быстрые действия</h3>
+                  <div class="home-quick-menu">
+                    <button class="quick-nav-button" data-go-section="classes">Открыть классы</button>
+                    <button class="quick-nav-button" data-go-section="students">Открыть учеников</button>
+                    <button class="quick-nav-button" data-go-section="grades">Открыть оценки</button>
+                    <button class="quick-nav-button" data-go-section="schedule">Открыть расписание</button>
+                  </div>
+                </div>
+                <div class="home-panel">
+                  <h3 class="ui header">Ближайшие уроки</h3>
+                  <div id="home-next-lessons" class="home-next-lessons-list"></div>
+                </div>
               </div>
             </div>
-            <div class="ui segment home-panel">
-              <h3 class="ui header">Ближайшие уроки</h3>
-              <div id="home-next-lessons" class="home-next-lessons-list"></div>
-            </div>
-          </div>
-        </div>
           </section>
 
           <section class="section page-card" data-section-panel="classes">
@@ -465,29 +455,74 @@
 
           <section class="section page-card" data-section-panel="settings">
             <h2 class="ui header">Настройки</h2>
-            <div class="ui two stackable cards">
-              <div class="card">
-                <div class="content">
-                  <div class="header">Информация о приложении</div>
-                  <div class="description">
-                    <p>Текущая версия: <strong id="settings-app-version">-</strong></p>
-                    <p>Сборка: <strong id="settings-build-version">-</strong></p>
-                  </div>
+            <div class="ui stackable two column grid">
+              <div class="column">
+                <div class="ui segment">
+                  <h3 class="ui header">Информация о приложении</h3>
+                  <p>Текущая версия: <strong id="settings-app-version">-</strong></p>
+                  <p>Сборка: <strong id="settings-build-version">-</strong></p>
                 </div>
               </div>
-              <div class="card">
-                <div class="content">
-                  <div class="header">Профиль сессии</div>
-                  <div class="description">
-                    <p>Текущий пользователь: <strong id="settings-current-user">-</strong></p>
-                    <p>Роль: <strong id="settings-current-role">-</strong></p>
-                  </div>
+              <div class="column">
+                <div class="ui segment">
+                  <h3 class="ui header">Профиль сессии</h3>
+                  <p>Текущий пользователь: <strong id="settings-current-user">-</strong></p>
+                  <p>Роль: <strong id="settings-current-role">-</strong></p>
                 </div>
               </div>
             </div>
+
+            <div class="ui segment">
+              <h3 class="ui header">Источник данных</h3>
+              <form id="database-settings-form" class="ui form">
+                <div class="field">
+                  <label>Тип базы данных</label>
+                  <select id="database-mode" required>
+                    <option value="local">Локальная база данных</option>
+                    <option value="remote">Удаленная база данных</option>
+                  </select>
+                </div>
+
+                <div id="database-local-fields">
+                  <div class="field">
+                    <label>Имя локальной базы</label>
+                    <input type="text" id="database-local-name" placeholder="teachaxo_local.db" />
+                  </div>
+                </div>
+
+                <div id="database-remote-fields" class="hidden">
+                  <div class="two fields">
+                    <div class="field">
+                      <label>Host</label>
+                      <input type="text" id="database-remote-host" placeholder="127.0.0.1" />
+                    </div>
+                    <div class="field">
+                      <label>Port</label>
+                      <input type="number" id="database-remote-port" placeholder="5432" />
+                    </div>
+                  </div>
+                  <div class="two fields">
+                    <div class="field">
+                      <label>Пользователь</label>
+                      <input type="text" id="database-remote-user" placeholder="db_user" />
+                    </div>
+                    <div class="field">
+                      <label>Пароль</label>
+                      <input type="password" id="database-remote-password" placeholder="••••••" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label>Имя базы данных</label>
+                    <input type="text" id="database-remote-name" placeholder="teachaxo" />
+                  </div>
+                </div>
+                <button class="ui primary button" type="submit">Сохранить параметры БД</button>
+              </form>
+              <div id="database-settings-status" class="ui tiny message hidden"></div>
+            </div>
+
             <div class="ui info message">
-              Здесь отображаются системные параметры интерфейса. Управление расписанием и доступом выполняется на
-              соответствующих страницах.
+              Можно использовать локальную базу на этом устройстве или хранить данные в удаленной БД.
             </div>
           </section>
         </main>
