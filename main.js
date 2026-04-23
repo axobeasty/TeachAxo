@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, Notification, dialog, nativeImage } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, Notification, dialog, nativeImage, nativeTheme } = require("electron");
 const path = require("path");
 const fs = require("node:fs");
 const https = require("node:https");
@@ -105,6 +105,18 @@ function saveUiConfig(userDataPath, config) {
   fs.writeFileSync(configPath, JSON.stringify(safeConfig, null, 2), "utf-8");
 }
 
+function resolveDisplayTheme() {
+  const pref = normalizeUiTheme(appUiConfig.theme);
+  if (pref === "dark") return "dark";
+  if (pref === "light") return "light";
+  return nativeTheme.shouldUseDarkColors ? "dark" : "light";
+}
+
+function broadcastUpdaterAppearance() {
+  if (!updaterWindow || updaterWindow.isDestroyed()) return;
+  updaterWindow.webContents.send("updater:appearance", { display: resolveDisplayTheme() });
+}
+
 function resolveWindowIcon(iconPath) {
   if (!iconPath) return undefined;
   if (!fs.existsSync(iconPath)) return undefined;
@@ -198,6 +210,9 @@ function createUpdaterWindow() {
   });
 
   updaterWindow.loadFile(path.join(__dirname, "src", "updater.html"));
+  updaterWindow.webContents.once("did-finish-load", () => {
+    broadcastUpdaterAppearance();
+  });
 }
 
 function sendUpdaterStatus(type, message, extra = {}) {
@@ -685,6 +700,8 @@ function setupAutoUpdateFlow() {
 }
 
 function registerDatabaseIpcHandlers() {
+  ipcMain.handle("updater:get-appearance", async () => ({ display: resolveDisplayTheme() }));
+
   ipcMain.handle("updater:close-window", (event) => {
     const sourceWindow = BrowserWindow.fromWebContents(event.sender);
     if (!sourceWindow || sourceWindow.isDestroyed()) return { ok: false };
@@ -838,6 +855,7 @@ function registerDatabaseIpcHandlers() {
     if (updaterWindow && !updaterWindow.isDestroyed() && iconImage) {
       updaterWindow.setIcon(iconImage);
     }
+    broadcastUpdaterAppearance();
     return { ok: true };
   });
 }
@@ -876,6 +894,10 @@ app.whenReady().then(async () => {
     notifyWindows("TeachAxo", cachedDbStatus.message);
     startDbHealthMonitor();
     registerDatabaseIpcHandlers();
+    nativeTheme.on("updated", () => {
+      if (normalizeUiTheme(appUiConfig.theme) !== "system") return;
+      broadcastUpdaterAppearance();
+    });
     setupAutoUpdateFlow();
   } catch (error) {
     console.error("DB init failed:", error);

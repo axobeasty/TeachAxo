@@ -7,12 +7,31 @@
     <link rel="stylesheet" href="../node_modules/semantic-ui-css/semantic.min.css" />
     <style>
       :root {
+        color-scheme: light;
         --bg: #f7f8fa;
         --surface: #ffffff;
+        --surface-2: #f2f4f7;
         --line: #e4e7ec;
         --text: #101828;
         --muted: #667085;
+        --ink: #344054;
         --primary: #2563eb;
+        --danger: #ef4444;
+        --progress-track: #e5e7eb;
+      }
+
+      html[data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #0b0d12;
+        --surface: #12151c;
+        --surface-2: #1a1f2a;
+        --line: #2a3140;
+        --text: #e8eaed;
+        --muted: #9aa0ae;
+        --ink: #dde1e8;
+        --primary: #6eb6ff;
+        --danger: #f85149;
+        --progress-track: #2a3140;
       }
 
       * {
@@ -33,13 +52,13 @@
         align-items: center;
         justify-content: space-between;
         border-bottom: 1px solid var(--line);
-        background: #fff;
+        background: var(--surface);
       }
 
       .titlebar-label {
         padding: 0 10px;
         font-size: 12px;
-        color: #344054;
+        color: var(--ink);
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -55,18 +74,18 @@
         border: 0;
         border-left: 1px solid var(--line);
         background: transparent;
-        color: #344054;
+        color: var(--ink);
         font-size: 16px;
         cursor: pointer;
         -webkit-app-region: no-drag;
       }
 
       .titlebar-btn:hover {
-        background: #f2f4f7;
+        background: var(--surface-2);
       }
 
       .titlebar-btn.close:hover {
-        background: #ef4444;
+        background: var(--danger);
         color: #fff;
       }
 
@@ -77,12 +96,17 @@
         padding: 16px;
       }
 
+      html[data-theme="dark"] .wrap {
+        background: radial-gradient(1200px 600px at 20% 0%, rgba(110, 182, 255, 0.06), transparent 55%);
+      }
+
       .update-card {
         width: min(500px, 100%);
         border: 1px solid var(--line);
         border-radius: 12px;
         background: var(--surface);
         padding: 16px;
+        box-shadow: none;
       }
 
       .update-hero {
@@ -98,6 +122,7 @@
       .update-hero .title {
         font-size: 16px;
         font-weight: 700;
+        color: var(--text);
       }
 
       .update-hero .sub {
@@ -108,6 +133,7 @@
       .status {
         margin: 0 0 10px;
         font-size: 14px;
+        color: var(--text);
       }
 
       .meta {
@@ -119,12 +145,16 @@
       .ui.progress {
         margin: 0 !important;
         border-radius: 999px !important;
-        background: #e5e7eb !important;
+        background: var(--progress-track) !important;
         height: 8px !important;
       }
 
       .ui.progress .bar {
         background: var(--primary) !important;
+      }
+
+      html[data-theme="dark"] .ui.progress {
+        border: 1px solid var(--line) !important;
       }
     </style>
   </head>
@@ -154,6 +184,26 @@
       const progressWrap = document.getElementById("progress-wrap");
       const progressBar = document.getElementById("progress-bar");
       const closeBtn = document.getElementById("updater-close-btn");
+
+      function applyUpdaterTheme(display) {
+        if (display === "light" || display === "dark") {
+          document.documentElement.setAttribute("data-theme", display);
+        }
+      }
+
+      async function initUpdaterTheme() {
+        try {
+          const appearance = await window.teachAxoUpdater.getAppearance?.();
+          if (appearance?.display) applyUpdaterTheme(appearance.display);
+        } catch (_err) {
+          /* keep default (light) */
+        }
+      }
+
+      initUpdaterTheme();
+      window.teachAxoUpdater.onAppearance?.((payload) => {
+        if (payload?.display) applyUpdaterTheme(payload.display);
+      });
 
       closeBtn?.addEventListener("click", () => {
         window.teachAxoUpdater.closeWindow?.().catch(() => {});
