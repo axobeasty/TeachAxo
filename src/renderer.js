@@ -138,7 +138,7 @@ function hasPermission(permission) {
 }
 
 function canAccessSection(section) {
-  if (section === "home" || section === "settings") return true;
+  if (section === "home" || section === "settings" || section === "profile") return true;
   if (section === "access") return hasPermission("manage_roles") || hasPermission("manage_users");
   return hasPermission(SECTION_PERMISSIONS[section] ?? "");
 }
@@ -522,6 +522,18 @@ function renderSettingsPage() {
   document.getElementById("database-remote-fields").classList.toggle("hidden", !isRemote);
 }
 
+function renderProfilePage() {
+  const currentUser = getCurrentUser();
+  const currentRole = currentUser ? getRole(currentUser.roleId) : null;
+  document.getElementById("profile-current-username").textContent = currentUser?.username || "-";
+  document.getElementById("profile-current-role").textContent = currentRole?.name || "Без роли";
+
+  const usernameInput = document.getElementById("profile-new-username");
+  if (usernameInput && currentUser) {
+    usernameInput.placeholder = `Текущий: ${currentUser.username}`;
+  }
+}
+
 function renderRoles() {
   const tbody = document.getElementById("roles-table-body");
   tbody.innerHTML = state.roles
@@ -592,11 +604,69 @@ function renderAll() {
   renderSchedule();
   renderHomeSchedule();
   renderHomeDashboard();
+  renderProfilePage();
   renderSettingsPage();
   renderRoles();
   renderUsers();
   renderStatusBar();
   applyAccessControl();
+}
+
+function setupProfileHandlers() {
+  const form = document.getElementById("profile-form");
+  const status = document.getElementById("profile-form-status");
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      status.textContent = "Сессия пользователя не найдена.";
+      status.className = "ui tiny red message";
+      return;
+    }
+
+    const newUsername = document.getElementById("profile-new-username").value.trim();
+    const newPassword = document.getElementById("profile-new-password").value;
+    const confirmPassword = document.getElementById("profile-confirm-password").value;
+
+    if (!newUsername && !newPassword) {
+      status.textContent = "Укажите новый логин или пароль.";
+      status.className = "ui tiny red message";
+      return;
+    }
+
+    if (newUsername) {
+      const duplicate = state.users.some(
+        (user) => user.id !== currentUser.id && user.username.toLowerCase() === newUsername.toLowerCase()
+      );
+      if (duplicate) {
+        status.textContent = "Пользователь с таким логином уже существует.";
+        status.className = "ui tiny red message";
+        return;
+      }
+      currentUser.username = newUsername;
+    }
+
+    if (newPassword) {
+      if (newPassword.length < 4) {
+        status.textContent = "Новый пароль должен быть не короче 4 символов.";
+        status.className = "ui tiny red message";
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        status.textContent = "Подтверждение пароля не совпадает.";
+        status.className = "ui tiny red message";
+        return;
+      }
+      currentUser.password = newPassword;
+    }
+
+    saveState();
+    form.reset();
+    status.textContent = "Профиль успешно обновлен.";
+    status.className = "ui tiny positive message";
+    renderAll();
+  });
 }
 
 function requirePermission(permission) {
@@ -1199,6 +1269,7 @@ async function init() {
   setupGradesHandlers();
   setupScheduleHandlers();
   setupAccessHandlers();
+  setupProfileHandlers();
   setupDatabaseSettingsHandlers();
   setupStatusBarHandlers();
   setupPrintHandlers();

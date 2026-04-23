@@ -62,6 +62,7 @@
             <a class="nav-item" data-section="grades"><i class="clipboard check icon"></i>Оценки</a>
             <a class="nav-item" data-section="schedule"><i class="calendar alternate icon"></i>Расписание</a>
             <a class="nav-item" data-section="access"><i class="shield alternate icon"></i>Доступ</a>
+            <a class="nav-item" data-section="profile"><i class="user circle icon"></i>Профиль</a>
             <a class="nav-item" data-section="settings"><i class="cog icon"></i>Настройки</a>
           </nav>
         </aside>
@@ -460,6 +461,40 @@
             </div>
           </div>
         </div>
+          </section>
+
+          <section class="section page-card" data-section-panel="profile">
+            <h2 class="ui header">Профиль пользователя</h2>
+            <div class="ui stackable two column grid">
+              <div class="column">
+                <div class="ui segment">
+                  <h3 class="ui header">Текущие данные</h3>
+                  <p>Логин: <strong id="profile-current-username">-</strong></p>
+                  <p>Роль: <strong id="profile-current-role">-</strong></p>
+                </div>
+              </div>
+              <div class="column">
+                <div class="ui segment">
+                  <h3 class="ui header">Изменить профиль</h3>
+                  <form id="profile-form" class="ui form">
+                    <div class="field">
+                      <label>Новый логин</label>
+                      <input type="text" id="profile-new-username" placeholder="Новый логин" />
+                    </div>
+                    <div class="field">
+                      <label>Новый пароль</label>
+                      <input type="password" id="profile-new-password" placeholder="Минимум 4 символа" />
+                    </div>
+                    <div class="field">
+                      <label>Подтвердите пароль</label>
+                      <input type="password" id="profile-confirm-password" placeholder="Повторите новый пароль" />
+                    </div>
+                    <button class="ui primary button" type="submit">Сохранить изменения</button>
+                  </form>
+                  <div id="profile-form-status" class="ui tiny message hidden"></div>
+                </div>
+              </div>
+            </div>
           </section>
 
           <section class="section page-card" data-section-panel="settings">
