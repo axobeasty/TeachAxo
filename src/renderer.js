@@ -224,6 +224,15 @@ function canAccessSection(section) {
   return hasPermission(SECTION_PERMISSIONS[section] ?? "");
 }
 
+function getSectionAccessMessage(section) {
+  if (section === "access") {
+    return "У вас нет прав на раздел 'Доступ'. Нужны права управления ролями или пользователями.";
+  }
+  const permission = SECTION_PERMISSIONS[section];
+  if (!permission) return "У вас нет прав на открытие этого раздела.";
+  return `У вас нет права '${PERMISSIONS[permission] || permission}' для открытия этого раздела.`;
+}
+
 function applyLoadedState(parsed) {
   if (!parsed) return;
   state.classes = Array.isArray(parsed.classes) ? parsed.classes : [];
@@ -246,7 +255,14 @@ function applyLoadedState(parsed) {
     }
   };
   state.roles = Array.isArray(parsed.roles) ? parsed.roles : [];
-  state.users = Array.isArray(parsed.users) ? parsed.users : [];
+  state.users = Array.isArray(parsed.users)
+    ? parsed.users.map((user) => ({
+        ...user,
+        fullName: user?.fullName || "",
+        email: user?.email || "",
+        phone: user?.phone || ""
+      }))
+    : [];
   state.currentUserId = parsed.currentUserId ?? null;
   const hasAuthSettings = parsed.auth && typeof parsed.auth === "object";
   state.auth = {
@@ -313,18 +329,27 @@ function seedAccessData() {
       id: uid(),
       username: "admin",
       password: "admin123",
+      fullName: "Администратор системы",
+      email: "",
+      phone: "",
       roleId: adminRole.id,
       isSystem: true
     });
   }
 }
 
-function activateSection(section) {
+function activateSection(section, options = {}) {
+  const silent = Boolean(options?.silent);
+  const allowedTarget = canAccessSection(section);
+  if (!allowedTarget && !silent) {
+    notifyUser(getSectionAccessMessage(section), "warning");
+  }
   const target = canAccessSection(section) ? section : "home";
   document.querySelectorAll(".nav-item").forEach((item) => {
     item.classList.remove("active");
     const allowed = canAccessSection(item.dataset.section);
-    item.classList.toggle("hidden", !allowed);
+    item.classList.toggle("disabled", !allowed);
+    item.setAttribute("aria-disabled", allowed ? "false" : "true");
   });
   document.querySelectorAll(".section").forEach((panel) => panel.classList.remove("active"));
   const activeNav = document.querySelector(`.nav-item[data-section="${target}"]`);
@@ -335,7 +360,10 @@ function activateSection(section) {
 
 function applyAccessControl() {
   document.querySelectorAll(".quick-nav-button").forEach((button) => {
-    button.classList.toggle("hidden", !canAccessSection(button.dataset.goSection));
+    const allowed = canAccessSection(button.dataset.goSection);
+    button.classList.toggle("disabled", !allowed);
+    button.disabled = !allowed;
+    button.title = allowed ? "" : getSectionAccessMessage(button.dataset.goSection);
   });
   document.getElementById("print-class-list").classList.toggle("hidden", !hasPermission("print_data"));
   document.getElementById("print-schedule").classList.toggle("hidden", !hasPermission("print_data"));
@@ -343,10 +371,24 @@ function applyAccessControl() {
 
 function setupNav() {
   document.querySelectorAll(".nav-item").forEach((item) => {
-    item.addEventListener("click", () => activateSection(item.dataset.section));
+    item.addEventListener("click", () => {
+      const section = item.dataset.section;
+      if (!canAccessSection(section)) {
+        notifyUser(getSectionAccessMessage(section), "warning");
+        return;
+      }
+      activateSection(section, { silent: true });
+    });
   });
   document.querySelectorAll(".quick-nav-button").forEach((button) => {
-    button.addEventListener("click", () => activateSection(button.dataset.goSection));
+    button.addEventListener("click", () => {
+      const section = button.dataset.goSection;
+      if (!canAccessSection(section)) {
+        notifyUser(getSectionAccessMessage(section), "warning");
+        return;
+      }
+      activateSection(section, { silent: true });
+    });
   });
 }
 
@@ -602,6 +644,12 @@ function renderProfilePage() {
   const currentRole = currentUser ? getRole(currentUser.roleId) : null;
   document.getElementById("profile-current-username").textContent = currentUser?.username || "-";
   document.getElementById("profile-current-role").textContent = currentRole?.name || "Без роли";
+  const fullNameNode = document.getElementById("profile-current-fullname");
+  const emailNode = document.getElementById("profile-current-email");
+  const phoneNode = document.getElementById("profile-current-phone");
+  if (fullNameNode) fullNameNode.textContent = currentUser?.fullName || "-";
+  if (emailNode) emailNode.textContent = currentUser?.email || "-";
+  if (phoneNode) phoneNode.textContent = currentUser?.phone || "-";
 
   const usernameInput = document.getElementById("profile-new-username");
   if (usernameInput && currentUser) {
@@ -633,6 +681,9 @@ function renderUsers() {
       const role = getRole(user.roleId);
       return `<tr>
         <td>${escapeHtml(user.username)}</td>
+        <td>${escapeHtml(user.fullName || "-")}</td>
+        <td>${escapeHtml(user.email || "-")}</td>
+        <td>${escapeHtml(user.phone || "-")}</td>
         <td>${escapeHtml(role?.name || "Без роли")}</td>
         <td><button class="ui mini red button" data-delete-user="${user.id}">Удалить</button></td>
       </tr>`;
@@ -999,8 +1050,14 @@ function setupAccessHandlers() {
     if (!requirePermission("manage_users")) return;
     const username = document.getElementById("user-username").value.trim();
     const password = document.getElementById("user-password").value;
+    const fullName = document.getElementById("user-fullname").value.trim();
+    const email = document.getElementById("user-email").value.trim();
+    const phone = document.getElementById("user-phone").value.trim();
     const roleId = document.getElementById("user-role").value;
-    if (!username || !password || !roleId) return;
+    if (!username || !password || !roleId || !fullName) {
+      notifyUser("Заполните логин, пароль, ФИО и роль.", "warning");
+      return;
+    }
     if (password.length < 4) {
       notifyUser("Пароль должен быть не короче 4 символов.", "warning");
       return;
@@ -1009,7 +1066,7 @@ function setupAccessHandlers() {
       notifyUser("Пользователь с таким логином уже существует.", "warning");
       return;
     }
-    state.users.push({ id: uid(), username, password, roleId, isSystem: false });
+    state.users.push({ id: uid(), username, password, fullName, email, phone, roleId, isSystem: false });
     document.getElementById("user-form").reset();
     saveState();
     renderAll();
@@ -1404,7 +1461,7 @@ function setupAuthHandlers() {
     authScreen.classList.add("hidden");
     appShell.classList.remove("hidden");
     renderAll();
-    activateSection("home");
+    activateSection("home", { silent: true });
   };
 
   document.getElementById("login-form").addEventListener("submit", (event) => {

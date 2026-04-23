@@ -447,6 +447,20 @@
                 <input type="text" id="user-username" required placeholder="teacher1" />
               </div>
               <div class="field">
+                <label>ФИО</label>
+                <input type="text" id="user-fullname" required placeholder="Иванов Иван Иванович" />
+              </div>
+              <div class="two fields">
+                <div class="field">
+                  <label>Почта</label>
+                  <input type="email" id="user-email" placeholder="teacher@example.com" />
+                </div>
+                <div class="field">
+                  <label>Телефон</label>
+                  <input type="text" id="user-phone" placeholder="+7 900 000-00-00" />
+                </div>
+              </div>
+              <div class="field">
                 <label>Пароль</label>
                 <input type="password" id="user-password" required placeholder="Минимум 4 символа" />
               </div>
@@ -460,6 +474,9 @@
               <thead>
                 <tr>
                   <th>Логин</th>
+                  <th>ФИО</th>
+                  <th>Почта</th>
+                  <th>Телефон</th>
                   <th>Роль</th>
                   <th>Действия</th>
                 </tr>
@@ -480,6 +497,9 @@
                 <div class="ui segment">
                   <h3 class="ui header">Текущие данные</h3>
                   <p>Логин: <strong id="profile-current-username">-</strong></p>
+                  <p>ФИО: <strong id="profile-current-fullname">-</strong></p>
+                  <p>Почта: <strong id="profile-current-email">-</strong></p>
+                  <p>Телефон: <strong id="profile-current-phone">-</strong></p>
                   <p>Роль: <strong id="profile-current-role">-</strong></p>
                 </div>
               </div>

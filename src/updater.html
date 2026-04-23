@@ -7,22 +7,23 @@
     <link rel="stylesheet" href="../node_modules/semantic-ui-css/semantic.min.css" />
     <style>
       :root {
-        --bg: #f2f5fb;
+        --bg: #f7f8fa;
         --surface: #ffffff;
-        --text: #1c2434;
-        --muted: #687387;
-        --primary: #4157ff;
-        --primary-2: #6d3ef3;
-        --border: #e6eaf3;
-        --shadow-lg: 0 14px 30px rgba(27, 39, 71, 0.08);
-        --radius-lg: 14px;
+        --line: #e4e7ec;
+        --text: #101828;
+        --muted: #667085;
+        --primary: #2563eb;
+      }
+
+      * {
+        box-sizing: border-box;
       }
 
       body {
         margin: 0;
-        background: radial-gradient(1200px 500px at 20% -10%, #e8edff 0%, #f2f5fb 50%, #edf1f8 100%);
+        background: var(--bg);
         color: var(--text);
-        font-family: "Segoe UI", Arial, sans-serif;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
         -webkit-app-region: drag;
       }
 
@@ -31,16 +32,15 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-bottom: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.82);
-        -webkit-app-region: drag;
+        border-bottom: 1px solid var(--line);
+        background: #fff;
       }
 
       .titlebar-label {
-        padding-left: 12px;
+        padding: 0 10px;
         font-size: 12px;
-        color: #576380;
-        font-weight: 700;
+        color: #344054;
+        font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
@@ -53,62 +53,61 @@
       .titlebar-btn {
         width: 42px;
         border: 0;
-        border-left: 1px solid #e9edf6;
+        border-left: 1px solid var(--line);
         background: transparent;
-        color: #3f4e69;
+        color: #344054;
         font-size: 16px;
         cursor: pointer;
         -webkit-app-region: no-drag;
       }
 
       .titlebar-btn:hover {
-        background: #eef2ff;
+        background: #f2f4f7;
       }
 
       .titlebar-btn.close:hover {
-        background: #ff4d4f;
+        background: #ef4444;
         color: #fff;
       }
 
       .wrap {
         min-height: calc(100vh - 34px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 24px;
+        display: grid;
+        place-items: center;
+        padding: 16px;
       }
 
       .update-card {
-        width: min(540px, 100%);
-        border-radius: var(--radius-lg);
-        border: 1px solid var(--border);
+        width: min(500px, 100%);
+        border: 1px solid var(--line);
+        border-radius: 12px;
         background: var(--surface);
-        box-shadow: var(--shadow-lg);
-        padding: 20px;
+        padding: 16px;
       }
 
       .update-hero {
-        background: linear-gradient(120deg, #2f4dff 0%, #7344f8 100%);
-        border-radius: 10px;
-        color: #fff;
-        padding: 14px 16px;
-        margin-bottom: 14px;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 10px;
+        margin-bottom: 12px;
       }
 
       .update-hero .title {
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 700;
       }
 
       .update-hero .sub {
-        margin-top: 4px;
-        font-size: 13px;
-        opacity: 0.95;
+        font-size: 12px;
+        color: var(--muted);
       }
 
       .status {
-        font-size: 15px;
-        margin-bottom: 10px;
+        margin: 0 0 10px;
+        font-size: 14px;
       }
 
       .meta {
@@ -118,11 +117,14 @@
       }
 
       .ui.progress {
-        margin-top: 8px !important;
+        margin: 0 !important;
+        border-radius: 999px !important;
+        background: #e5e7eb !important;
+        height: 8px !important;
       }
 
       .ui.progress .bar {
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%) !important;
+        background: var(--primary) !important;
       }
     </style>
   </head>
@@ -137,7 +139,7 @@
       <div class="update-card">
         <div class="update-hero">
           <div class="title">TeachAxo</div>
-          <div class="sub">Проверка и установка обновлений</div>
+          <div class="sub">Обновление</div>
         </div>
         <p id="status-message" class="status">Инициализация...</p>
         <div class="ui tiny indicating progress" id="progress-wrap">
