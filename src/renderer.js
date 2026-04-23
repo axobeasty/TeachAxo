@@ -337,6 +337,46 @@ function renderHomeSchedule() {
     .join("");
 }
 
+function renderHomeDashboard() {
+  const classesCount = state.classes.length;
+  const studentsCount = state.students.length;
+  const gradesCount = state.grades.length;
+  const scheduleCount = getCurrentUserScheduleEntries().length;
+  const currentUser = getCurrentUser();
+
+  document.getElementById("home-stat-classes").textContent = String(classesCount);
+  document.getElementById("home-stat-students").textContent = String(studentsCount);
+  document.getElementById("home-stat-grades").textContent = String(gradesCount);
+  document.getElementById("home-stat-schedule").textContent = String(scheduleCount);
+
+  const subtitle = currentUser
+    ? `Добро пожаловать, ${currentUser.username}. Ваша текущая нагрузка: ${scheduleCount} урок(ов) в расписании.`
+    : "Добро пожаловать в TeachAxo. Здесь собрана вся ключевая информация по классам, ученикам и урокам.";
+  document.getElementById("home-hero-subtitle").textContent = subtitle;
+
+  const sorted = [...getCurrentUserScheduleEntries()].sort((a, b) => {
+    const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+    return dayDiff !== 0 ? dayDiff : a.start.localeCompare(b.start);
+  });
+  const nextLessons = sorted.slice(0, 5);
+  const nextLessonsContainer = document.getElementById("home-next-lessons");
+
+  if (nextLessons.length === 0) {
+    nextLessonsContainer.innerHTML = `<div class="ui message">Пока нет уроков в расписании.</div>`;
+    return;
+  }
+
+  nextLessonsContainer.innerHTML = nextLessons
+    .map(
+      (entry) => `<div class="home-next-lesson">
+      <div class="title">${escapeHtml(entry.day)} • ${escapeHtml(entry.start)} - ${escapeHtml(entry.end)}</div>
+      <div>${escapeHtml(entry.subject)} (${escapeHtml(entry.className)})</div>
+      <div class="meta">Кабинет: ${escapeHtml(entry.room || "-")} ${entry.notes ? `• ${escapeHtml(entry.notes)}` : ""}</div>
+    </div>`
+    )
+    .join("");
+}
+
 function renderRoles() {
   const tbody = document.getElementById("roles-table-body");
   tbody.innerHTML = state.roles
@@ -376,6 +416,7 @@ function renderAll() {
   renderGrades();
   renderSchedule();
   renderHomeSchedule();
+  renderHomeDashboard();
   renderRoles();
   renderUsers();
   applyAccessControl();
@@ -752,8 +793,10 @@ function setupAuthHandlers() {
 }
 
 function init() {
-  if (window.teachAxo?.appVersion) {
-    const versionLabel = window.teachAxo.buildVersion || window.teachAxo.appVersion;
+  if (window.teachAxo) {
+    const appVersion = window.teachAxo.appVersion || "0.0.0";
+    const buildVersion = window.teachAxo.buildVersion || appVersion;
+    const versionLabel = buildVersion === appVersion ? appVersion : `${appVersion} (build ${buildVersion})`;
     document.getElementById("app-version").textContent = versionLabel;
   }
   loadState();

@@ -56,63 +56,77 @@
       </div>
 
       <div class="ui bottom attached segment section active" data-section-panel="home">
-        <h2 class="ui header">Общее меню</h2>
-        <div class="ui four stackable cards quick-nav">
-          <div class="card">
+        <div class="home-hero ui segment">
+          <div class="home-hero-title">Панель преподавателя</div>
+          <div class="home-hero-subtitle" id="home-hero-subtitle">
+            Добро пожаловать в TeachAxo. Здесь собрана вся ключевая информация по классам, ученикам и урокам.
+          </div>
+        </div>
+
+        <div class="ui four stackable cards home-stats-grid">
+          <div class="card home-stat-card">
             <div class="content">
-              <div class="header">Классы</div>
-              <div class="description">Справочник классов и быстрый поиск.</div>
-            </div>
-            <div class="extra content">
-              <button class="ui fluid button quick-nav-button" data-go-section="classes">Открыть</button>
+              <div class="meta">Классы</div>
+              <div class="header" id="home-stat-classes">0</div>
             </div>
           </div>
-          <div class="card">
+          <div class="card home-stat-card">
             <div class="content">
-              <div class="header">Ученики</div>
-              <div class="description">Добавление, список и печать.</div>
-            </div>
-            <div class="extra content">
-              <button class="ui fluid button quick-nav-button" data-go-section="students">Открыть</button>
+              <div class="meta">Ученики</div>
+              <div class="header" id="home-stat-students">0</div>
             </div>
           </div>
-          <div class="card">
+          <div class="card home-stat-card">
             <div class="content">
-              <div class="header">Оценки</div>
-              <div class="description">Журнал и выставление оценок.</div>
-            </div>
-            <div class="extra content">
-              <button class="ui fluid button quick-nav-button" data-go-section="grades">Открыть</button>
+              <div class="meta">Оценки</div>
+              <div class="header" id="home-stat-grades">0</div>
             </div>
           </div>
-          <div class="card">
+          <div class="card home-stat-card">
             <div class="content">
-              <div class="header">Расписание</div>
-              <div class="description">Конструктор уроков и печать.</div>
-            </div>
-            <div class="extra content">
-              <button class="ui fluid button quick-nav-button" data-go-section="schedule">Открыть</button>
+              <div class="meta">Уроки в расписании</div>
+              <div class="header" id="home-stat-schedule">0</div>
             </div>
           </div>
         </div>
-        <div class="ui segment">
-          <h3 class="ui header">Мое расписание</h3>
-          <div class="weekly-schedule-wrapper">
-            <table class="ui celled striped table weekly-schedule-table">
-              <thead>
-                <tr>
-                  <th>Время</th>
-                  <th>Понедельник</th>
-                  <th>Вторник</th>
-                  <th>Среда</th>
-                  <th>Четверг</th>
-                  <th>Пятница</th>
-                  <th>Суббота</th>
-                  <th>Воскресенье</th>
-                </tr>
-              </thead>
-              <tbody id="home-schedule-table-body"></tbody>
-            </table>
+
+        <div class="ui stackable grid home-dashboard-grid">
+          <div class="ten wide column">
+            <div class="ui segment home-panel">
+              <h3 class="ui header">Мое расписание на неделю</h3>
+              <div class="weekly-schedule-wrapper">
+                <table class="ui celled striped table weekly-schedule-table">
+                  <thead>
+                    <tr>
+                      <th>Время</th>
+                      <th>Понедельник</th>
+                      <th>Вторник</th>
+                      <th>Среда</th>
+                      <th>Четверг</th>
+                      <th>Пятница</th>
+                      <th>Суббота</th>
+                      <th>Воскресенье</th>
+                    </tr>
+                  </thead>
+                  <tbody id="home-schedule-table-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="six wide column">
+            <div class="ui segment home-panel">
+              <h3 class="ui header">Быстрые действия</h3>
+              <div class="ui fluid vertical menu home-quick-menu">
+                <button class="item quick-nav-button" data-go-section="classes">Открыть классы</button>
+                <button class="item quick-nav-button" data-go-section="students">Открыть учеников</button>
+                <button class="item quick-nav-button" data-go-section="grades">Открыть оценки</button>
+                <button class="item quick-nav-button" data-go-section="schedule">Открыть расписание</button>
+              </div>
+            </div>
+            <div class="ui segment home-panel">
+              <h3 class="ui header">Ближайшие уроки</h3>
+              <div id="home-next-lessons" class="home-next-lessons-list"></div>
+            </div>
           </div>
         </div>
       </div>

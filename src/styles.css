@@ -43,6 +43,73 @@ body {
   min-height: 38px;
 }
 
+.home-hero {
+  background: linear-gradient(135deg, #2448ff 0%, #6f3cf0 100%);
+  color: #fff;
+  border: 0;
+}
+
+.home-hero-title {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.home-hero-subtitle {
+  margin-top: 6px;
+  opacity: 0.9;
+}
+
+.home-stats-grid .home-stat-card {
+  border-top: 4px solid #2448ff;
+}
+
+.home-stat-card .meta {
+  color: #6b7481 !important;
+  font-size: 12px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.home-stat-card .header {
+  font-size: 28px !important;
+  color: #1f2d3d !important;
+}
+
+.home-dashboard-grid {
+  margin-top: 6px !important;
+}
+
+.home-panel {
+  height: 100%;
+}
+
+.home-quick-menu .item {
+  text-align: left;
+}
+
+.home-next-lessons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.home-next-lesson {
+  background: #f5f8ff;
+  border-left: 4px solid #4d6bfe;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.home-next-lesson .title {
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.home-next-lesson .meta {
+  font-size: 12px;
+  color: #5f6c7b;
+}
+
 .weekly-schedule-wrapper {
   overflow-x: auto;
 }
