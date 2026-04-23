@@ -85,7 +85,6 @@ const state = {
   searchQuery: "",
   classSearchQuery: "",
   gradesJournalClass: "",
-  gradesJournalSubject: "",
   gradesJournalExtraDates: []
 };
 
@@ -133,6 +132,13 @@ function setUserThemePreference(pref) {
 
 const dayOrder = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 const VERSION_CHANGELOG = {
+  "1.0.39": {
+    added: [],
+    changed: [
+      "Оценки: только таблица фамилии × даты уроков, класс и добавление даты; контекстное меню в ячейке (1–5, Н, Б). Убран фильтр по предмету."
+    ],
+    removed: []
+  },
   "1.0.38": {
     added: [
       "Журнал оценок: одна таблица «учащиеся × даты уроков», добавление столбцов дат, контекстное меню в ячейке (1–5, Н, Б, очистить)."
@@ -280,26 +286,23 @@ function getJournalClassOptions() {
   return [...new Set([...fromClasses, ...fromStudents])].sort((a, b) => a.localeCompare(b, "ru"));
 }
 
-function getSubjectOptionsForClass(className) {
-  if (!className) return [];
-  const subs = [
-    ...new Set(
-      state.students
-        .filter((s) => s.className === className)
-        .map((s) => (s.subject || "").trim())
-        .filter(Boolean)
-    )
-  ];
-  return subs.sort((a, b) => a.localeCompare(b, "ru"));
+function getStudentSurname(student) {
+  const raw = String(student?.name || "").trim();
+  if (!raw) return "—";
+  const parts = raw.split(/\s+/);
+  return parts[0] || raw;
 }
 
-function getStudentsForJournal(className, subjectFilter) {
-  const subj = (subjectFilter || "").trim().toLowerCase();
+function getStudentsForJournal(className) {
   return state.students
-    .filter(
-      (s) => s.className === className && (!subj || (s.subject || "").trim().toLowerCase() === subj)
-    )
-    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+    .filter((s) => s.className === className)
+    .sort((a, b) => {
+      const sa = getStudentSurname(a);
+      const sb = getStudentSurname(b);
+      const cmp = sa.localeCompare(sb, "ru");
+      if (cmp !== 0) return cmp;
+      return a.name.localeCompare(b.name, "ru");
+    });
 }
 
 function collectJournalDates(studentIds) {
@@ -463,7 +466,6 @@ function applyLoadedState(parsed) {
     rememberedUserId: hasAuthSettings ? parsed.auth?.rememberedUserId ?? null : parsed.currentUserId ?? null
   };
   state.gradesJournalClass = typeof parsed.gradesJournalClass === "string" ? parsed.gradesJournalClass : "";
-  state.gradesJournalSubject = typeof parsed.gradesJournalSubject === "string" ? parsed.gradesJournalSubject : "";
   state.gradesJournalExtraDates = Array.isArray(parsed.gradesJournalExtraDates)
     ? parsed.gradesJournalExtraDates.filter((d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
     : [];
@@ -501,7 +503,6 @@ function saveState() {
     currentUserId: state.currentUserId,
     auth: state.auth,
     gradesJournalClass: state.gradesJournalClass,
-    gradesJournalSubject: state.gradesJournalSubject,
     gradesJournalExtraDates: state.gradesJournalExtraDates
   };
   if (!window.teachAxoDb?.saveState) {
@@ -695,8 +696,7 @@ function renderStudents() {
 
 function renderGradesJournalToolbar() {
   const classSelect = document.getElementById("grades-journal-class");
-  const subjectSelect = document.getElementById("grades-journal-subject");
-  if (!classSelect || !subjectSelect) return;
+  if (!classSelect) return;
 
   const classes = getJournalClassOptions();
   let currentClass = state.gradesJournalClass;
@@ -709,19 +709,6 @@ function renderGradesJournalToolbar() {
     ? classes.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")
     : `<option value="">— Нет классов —</option>`;
   classSelect.value = currentClass;
-
-  const subjects = currentClass ? getSubjectOptionsForClass(currentClass) : [];
-  let currentSubj = state.gradesJournalSubject || "";
-  if (currentSubj && !subjects.includes(currentSubj)) {
-    currentSubj = "";
-  }
-  state.gradesJournalSubject = currentSubj;
-
-  subjectSelect.innerHTML = [
-    `<option value="">Все предметы</option>`,
-    ...subjects.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`)
-  ].join("");
-  subjectSelect.value = currentSubj;
 }
 
 function renderGradesJournal() {
@@ -733,30 +720,33 @@ function renderGradesJournal() {
   renderGradesJournalToolbar();
 
   const className = state.gradesJournalClass;
-  const students = className ? getStudentsForJournal(className, state.gradesJournalSubject) : [];
+  const students = className ? getStudentsForJournal(className) : [];
   const studentIds = students.map((s) => s.id);
   const dates = className && studentIds.length ? collectJournalDates(studentIds) : className ? collectJournalDates([]) : [];
 
   if (!className || !students.length) {
     thead.innerHTML = "";
     tbody.innerHTML = `<tr><td colspan="1" class="grades-journal-empty">${
-      !className
-        ? "Добавьте классы и учеников, затем выберите класс."
-        : "В этом классе нет учеников (с учётом фильтра по предмету)."
+      !className ? "Выберите класс." : "В этом классе нет учеников."
     }</td></tr>`;
     return;
   }
 
   if (!dates.length) {
-    thead.innerHTML = `<tr><th class="grades-matrix-corner">Учащийся</th></tr>`;
+    thead.innerHTML = `<tr><th class="grades-matrix-corner">Фамилия</th></tr>`;
     tbody.innerHTML = students
-      .map((student) => `<tr><td class="grades-matrix-name">${escapeHtml(student.name)}</td></tr>`)
+      .map(
+        (student) =>
+          `<tr><td class="grades-matrix-name" title="${escapeHtml(student.name)}">${escapeHtml(
+            getStudentSurname(student)
+          )}</td></tr>`
+      )
       .join("");
     return;
   }
 
   const headCells = [
-    `<th class="grades-matrix-corner">Учащийся</th>`,
+    `<th class="grades-matrix-corner">Фамилия</th>`,
     ...dates.map(
       (d) =>
         `<th scope="col" title="${escapeHtml(d)}"><span class="grades-matrix-date-label">${escapeHtml(
@@ -780,7 +770,7 @@ function renderGradesJournal() {
         })
         .join("");
       return `<tr>
-        <td class="grades-matrix-name">${escapeHtml(student.name)}</td>
+        <td class="grades-matrix-name" title="${escapeHtml(student.name)}">${escapeHtml(getStudentSurname(student))}</td>
         ${cells}
       </tr>`;
     })
@@ -1311,7 +1301,6 @@ function setupStudentHandlers() {
 
 function setupGradesHandlers() {
   const classSelect = document.getElementById("grades-journal-class");
-  const subjectSelect = document.getElementById("grades-journal-subject");
   const addDateBtn = document.getElementById("grades-journal-add-date-btn");
   const newDateInput = document.getElementById("grades-journal-new-date");
   const matrixWrap = document.getElementById("grades-journal-matrix-wrap");
@@ -1320,15 +1309,6 @@ function setupGradesHandlers() {
   if (classSelect) {
     classSelect.addEventListener("change", () => {
       state.gradesJournalClass = classSelect.value;
-      state.gradesJournalSubject = "";
-      saveState();
-      renderGradesJournal();
-    });
-  }
-
-  if (subjectSelect) {
-    subjectSelect.addEventListener("change", () => {
-      state.gradesJournalSubject = subjectSelect.value;
       saveState();
       renderGradesJournal();
     });

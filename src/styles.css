@@ -445,20 +445,8 @@ body {
 .grades-journal-page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   min-width: 0;
-}
-
-.grades-journal-head .ui.header {
-  margin: 0 0 6px !important;
-}
-
-.grades-journal-hint {
-  margin: 0;
-  max-width: 72ch;
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--muted);
 }
 
 .grades-journal-toolbar {

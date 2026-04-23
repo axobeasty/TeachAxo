@@ -297,30 +297,17 @@
 
           <section class="section page-card" data-section-panel="grades">
             <div class="grades-page grades-journal-page">
-              <div class="grades-journal-head">
-                <h2 class="ui header">Журнал оценок</h2>
-                <p class="grades-journal-hint">
-                  Строки — учащиеся выбранного класса, столбцы — даты уроков. Правый клик по ячейке: оценка 1–5, «Н» (не был), «Б»
-                  (болел) или очистить.
-                </p>
-              </div>
               <div class="grades-journal-toolbar">
                 <div class="grades-journal-filters">
                   <div class="field">
                     <label for="grades-journal-class">Класс</label>
                     <select id="grades-journal-class"></select>
                   </div>
-                  <div class="field">
-                    <label for="grades-journal-subject">Предмет</label>
-                    <select id="grades-journal-subject">
-                      <option value="">Все предметы</option>
-                    </select>
-                  </div>
                   <div class="field grades-journal-add-date-field">
-                    <label for="grades-journal-new-date">Дата урока (новый столбец)</label>
+                    <label for="grades-journal-new-date">Дата урока</label>
                     <div class="grades-journal-date-row">
                       <input type="date" id="grades-journal-new-date" />
-                      <button type="button" class="ui button" id="grades-journal-add-date-btn">Добавить столбец</button>
+                      <button type="button" class="ui button" id="grades-journal-add-date-btn">Добавить дату</button>
                     </div>
                   </div>
                 </div>
@@ -339,8 +326,8 @@
                 <button type="button" class="grades-context-item" data-grade-pick="3">3</button>
                 <button type="button" class="grades-context-item" data-grade-pick="2">2</button>
                 <button type="button" class="grades-context-item" data-grade-pick="1">1</button>
-                <button type="button" class="grades-context-item" data-grade-pick="Н">Н (не был)</button>
-                <button type="button" class="grades-context-item" data-grade-pick="Б">Б (болел)</button>
+                <button type="button" class="grades-context-item" data-grade-pick="Н">Н</button>
+                <button type="button" class="grades-context-item" data-grade-pick="Б">Б</button>
                 <div class="grades-context-sep"></div>
                 <button type="button" class="grades-context-item grades-context-clear" data-grade-pick="">Очистить</button>
               </div>
