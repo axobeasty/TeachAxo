@@ -408,98 +408,120 @@
           </section>
 
           <section class="section page-card" data-section-panel="access">
-        <div class="ui stackable grid">
-          <div class="eight wide column" id="access-roles-column">
-            <h3 class="ui header">Роли и права</h3>
-            <form id="role-form" class="ui form">
-              <input type="hidden" id="role-editing-id" value="" />
-              <div class="field">
-                <label>Название роли</label>
-                <input type="text" id="role-name" required placeholder="Преподаватель" />
+            <div class="access-page">
+              <div class="access-page-head">
+                <h2 class="ui header">Доступ</h2>
+                <p>Роли, права и учётные записи. На узком экране блоки располагаются один под другим; широкие таблицы прокручиваются по горизонтали.</p>
               </div>
-              <div class="grouped fields">
-                <label>Права</label>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="view_dashboard" /><label>Просмотр дашборда</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_classes" /><label>Управление классами</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_students" /><label>Управление учениками</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_grades" /><label>Управление оценками</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_schedule" /><label>Управление расписанием</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="print_data" /><label>Печать данных</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_roles" /><label>Управление ролями</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_users" /><label>Управление пользователями</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="access_profile" /><label>Раздел «Профиль»</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="edit_profile" /><label>Редактирование своего профиля</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="access_settings" /><label>Раздел «Настройки»</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="view_app_info" /><label>Сведения о версии и журнал изменений</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_database" /><label>Настройка базы данных и миграция</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_appearance" /><label>Внешний вид приложения (иконка)</label></div></div>
-                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_updates" /><label>Проверка и установка обновлений</label></div></div>
-              </div>
-              <div class="field">
-                <button class="ui primary button" type="submit" id="role-form-submit">Создать роль</button>
-                <button class="ui button hidden" type="button" id="role-form-cancel">Отмена</button>
-              </div>
-            </form>
-            <table class="ui celled compact table">
-              <thead>
-                <tr>
-                  <th>Роль</th>
-                  <th>Права</th>
-                  <th>Действия</th>
-                </tr>
-              </thead>
-              <tbody id="roles-table-body"></tbody>
-            </table>
-          </div>
-          <div class="eight wide column" id="access-users-column">
-            <h3 class="ui header">Пользователи</h3>
-            <form id="user-form" class="ui form">
-              <div class="field">
-                <label>Логин</label>
-                <input type="text" id="user-username" required placeholder="teacher1" />
-              </div>
-              <div class="field">
-                <label>ФИО</label>
-                <input type="text" id="user-fullname" required placeholder="Иванов Иван Иванович" />
-              </div>
-              <div class="two fields">
-                <div class="field">
-                  <label>Почта</label>
-                  <input type="email" id="user-email" placeholder="teacher@example.com" />
+              <div class="access-panels">
+                <div class="access-panel" id="access-roles-column">
+                  <h3 class="ui header access-panel-title">Роли и права</h3>
+                  <div class="access-panel-body">
+                    <div class="access-form-card ui segment">
+                      <form id="role-form" class="ui form">
+                        <input type="hidden" id="role-editing-id" value="" />
+                        <div class="field">
+                          <label>Название роли</label>
+                          <input type="text" id="role-name" required placeholder="Преподаватель" />
+                        </div>
+                        <fieldset class="role-permissions-fieldset">
+                          <legend class="role-permissions-legend">Права</legend>
+                          <div class="role-permissions-grid">
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="view_dashboard" /><label>Просмотр дашборда</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_classes" /><label>Управление классами</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_students" /><label>Управление учениками</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_grades" /><label>Управление оценками</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_schedule" /><label>Управление расписанием</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="print_data" /><label>Печать данных</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_roles" /><label>Управление ролями</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_users" /><label>Управление пользователями</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="access_profile" /><label>Раздел «Профиль»</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="edit_profile" /><label>Редактирование своего профиля</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="access_settings" /><label>Раздел «Настройки»</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="view_app_info" /><label>Сведения о версии и журнал изменений</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_database" /><label>Настройка базы данных и миграция</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_appearance" /><label>Внешний вид приложения (иконка)</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_updates" /><label>Проверка и установка обновлений</label></div></div>
+                          </div>
+                        </fieldset>
+                        <div class="access-form-actions field">
+                          <button class="ui primary button" type="submit" id="role-form-submit">Создать роль</button>
+                          <button class="ui button hidden" type="button" id="role-form-cancel">Отмена</button>
+                        </div>
+                      </form>
+                    </div>
+                    <div class="access-table-wrap">
+                      <table class="ui celled compact table access-table access-table-roles">
+                        <thead>
+                          <tr>
+                            <th>Роль</th>
+                            <th>Права</th>
+                            <th class="access-th-actions">Действия</th>
+                          </tr>
+                        </thead>
+                        <tbody id="roles-table-body"></tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
-                <div class="field">
-                  <label>Телефон</label>
-                  <input type="text" id="user-phone" placeholder="+7 900 000-00-00" />
+                <div class="access-panel" id="access-users-column">
+                  <h3 class="ui header access-panel-title">Пользователи</h3>
+                  <div class="access-panel-body">
+                    <div class="access-form-card ui segment">
+                      <form id="user-form" class="ui form">
+                        <div class="field">
+                          <label>Логин</label>
+                          <input type="text" id="user-username" required placeholder="teacher1" />
+                        </div>
+                        <div class="field">
+                          <label>ФИО</label>
+                          <input type="text" id="user-fullname" required placeholder="Иванов Иван Иванович" />
+                        </div>
+                        <div class="two fields access-user-contact-row">
+                          <div class="field">
+                            <label>Почта</label>
+                            <input type="email" id="user-email" placeholder="teacher@example.com" />
+                          </div>
+                          <div class="field">
+                            <label>Телефон</label>
+                            <input type="text" id="user-phone" placeholder="+7 900 000-00-00" />
+                          </div>
+                        </div>
+                        <div class="field">
+                          <label>Пароль</label>
+                          <input type="password" id="user-password" required placeholder="Минимум 4 символа" />
+                        </div>
+                        <div class="field">
+                          <label>Роль</label>
+                          <select id="user-role" required></select>
+                        </div>
+                        <div class="access-form-actions field">
+                          <button class="ui primary button" type="submit">Создать пользователя</button>
+                        </div>
+                      </form>
+                    </div>
+                    <div class="access-table-wrap">
+                      <table class="ui celled compact table access-table access-table-users">
+                        <thead>
+                          <tr>
+                            <th>Логин</th>
+                            <th>ФИО</th>
+                            <th>Почта</th>
+                            <th>Телефон</th>
+                            <th>Роль</th>
+                            <th class="access-th-actions">Действия</th>
+                          </tr>
+                        </thead>
+                        <tbody id="users-table-body"></tbody>
+                      </table>
+                    </div>
+                    <div class="ui info message access-hint-message">
+                      Тестовый пользователь: <strong>admin</strong> / <strong>admin123</strong>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="field">
-                <label>Пароль</label>
-                <input type="password" id="user-password" required placeholder="Минимум 4 символа" />
-              </div>
-              <div class="field">
-                <label>Роль</label>
-                <select id="user-role" required></select>
-              </div>
-              <button class="ui primary button" type="submit">Создать пользователя</button>
-            </form>
-            <table class="ui celled compact table">
-              <thead>
-                <tr>
-                  <th>Логин</th>
-                  <th>ФИО</th>
-                  <th>Почта</th>
-                  <th>Телефон</th>
-                  <th>Роль</th>
-                  <th>Действия</th>
-                </tr>
-              </thead>
-              <tbody id="users-table-body"></tbody>
-            </table>
-            <div class="ui info message">
-              Тестовый пользователь: <strong>admin</strong> / <strong>admin123</strong>
             </div>
-          </div>
-        </div>
           </section>
 
           <section class="section page-card" data-section-panel="profile">

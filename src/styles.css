@@ -250,6 +250,194 @@ body {
   padding: 14px;
 }
 
+/* Access (roles & users) */
+.access-page {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.access-page-head {
+  padding: 2px 2px 0;
+  min-width: 0;
+}
+
+.access-page-head .ui.header {
+  margin-bottom: 4px !important;
+}
+
+.access-page-head p {
+  margin: 0;
+  max-width: 72ch;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.access-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+  min-width: 0;
+}
+
+.access-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.access-panel-title.ui.header {
+  margin: 0 !important;
+  flex-shrink: 0;
+}
+
+.access-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.access-form-card.ui.segment {
+  margin: 0 !important;
+  padding: 14px !important;
+  min-width: 0;
+}
+
+.access-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px !important;
+  margin-bottom: 0 !important;
+}
+
+.access-form-actions .ui.button {
+  margin: 0 !important;
+}
+
+.role-permissions-fieldset {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 12px 8px;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+
+.role-permissions-fieldset .field {
+  margin-bottom: 6px !important;
+}
+
+.role-permissions-fieldset .field:last-child {
+  margin-bottom: 0 !important;
+}
+
+.role-permissions-legend {
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #344054;
+}
+
+.role-permissions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 4px 14px;
+  min-width: 0;
+}
+
+.role-permissions-grid .ui.checkbox label {
+  line-height: 1.35 !important;
+  white-space: normal !important;
+}
+
+.access-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  -webkit-overflow-scrolling: touch;
+}
+
+.access-table-wrap .ui.table {
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  min-width: 520px;
+}
+
+.access-table-users {
+  min-width: 720px;
+}
+
+.access-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.access-table thead th,
+.access-table tbody td {
+  vertical-align: top !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.access-table .access-th-actions,
+.access-table .access-td-actions {
+  width: 148px;
+  white-space: normal;
+}
+
+.access-row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.access-row-actions .ui.mini.button {
+  width: 100%;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
+
+.access-hint-message {
+  margin-top: 0 !important;
+}
+
+.access-user-contact-row.two.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+}
+
+.access-user-contact-row.two.fields > .field {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .access-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .access-table-roles {
+    min-width: 0;
+  }
+
+  .access-table-roles .access-th-actions,
+  .access-table-roles .access-td-actions {
+    width: 132px;
+  }
+}
+
 /* Settings */
 .settings-page {
   display: grid;

@@ -774,11 +774,13 @@ function renderRoles() {
   const tbody = document.getElementById("roles-table-body");
   tbody.innerHTML = state.roles
     .map((role) => `<tr>
-      <td>${escapeHtml(role.name)}${role.isSystem ? " <span class=\"ui mini label\">системная</span>" : ""}</td>
-      <td>${role.permissions.map((p) => escapeHtml(PERMISSIONS[p] || p)).join(", ") || "-"}</td>
-      <td>
-        <button type="button" class="ui mini button" data-edit-role="${role.id}">Изменить</button>
-        <button type="button" class="ui mini red button" data-delete-role="${role.id}">Удалить</button>
+      <td class="access-role-name-cell">${escapeHtml(role.name)}${role.isSystem ? " <span class=\"ui mini label\">системная</span>" : ""}</td>
+      <td class="access-role-perms-cell">${role.permissions.map((p) => escapeHtml(PERMISSIONS[p] || p)).join(", ") || "-"}</td>
+      <td class="access-td-actions">
+        <div class="access-row-actions">
+          <button type="button" class="ui mini button" data-edit-role="${role.id}">Изменить</button>
+          <button type="button" class="ui mini red button" data-delete-role="${role.id}">Удалить</button>
+        </div>
       </td>
     </tr>`)
     .join("");
@@ -806,7 +808,11 @@ function renderUsers() {
         <td>${escapeHtml(user.email || "-")}</td>
         <td>${escapeHtml(user.phone || "-")}</td>
         <td>${escapeHtml(role?.name || "Без роли")}</td>
-        <td><button class="ui mini red button" data-delete-user="${user.id}">Удалить</button></td>
+        <td class="access-td-actions">
+          <div class="access-row-actions">
+            <button type="button" class="ui mini red button" data-delete-user="${user.id}">Удалить</button>
+          </div>
+        </td>
       </tr>`;
     })
     .join("");
