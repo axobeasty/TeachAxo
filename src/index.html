@@ -129,6 +129,7 @@
                   <div class="dashboard-card-head">
                     <h3 class="ui header dashboard-card-title">Расписание на неделю</h3>
                     <p class="dashboard-card-hint">Сводка по временным слотам и дням. Прокрутите таблицу на узком экране.</p>
+                    <p class="dashboard-card-hint" id="home-schedule-week-line"></p>
                   </div>
                   <div class="dashboard-table-wrap weekly-schedule-wrapper">
                     <table class="ui celled striped compact table weekly-schedule-table dashboard-weekly-table">
@@ -339,8 +340,8 @@
               <div class="schedule-builder-head">
                 <h2 class="ui header">Конструктор расписания</h2>
                 <p>
-                  Задайте сетку уроков (начало и длительность), затем добавляйте слоты по дням. Время подставляется по номеру урока и
-                  может быть изменено вручную.
+                  Расписание ведётся в двухнедельном цикле: для каждого урока указывается неделя I, неделя II или обе. На дашборде
+                  показывается одна неделя (по календарю ISO или вручную в настройках сетки). Время подставляется по номеру урока.
                 </p>
               </div>
 
@@ -366,6 +367,14 @@
                           </select>
                         </div>
                       </div>
+                      <div class="field">
+                        <label for="schedule-dashboard-week-view">Дашборд: отображаемая неделя цикла</label>
+                        <select id="schedule-dashboard-week-view">
+                          <option value="auto">Автоматически (нечётная ISO-неделя года → I, чётная → II)</option>
+                          <option value="1">Всегда неделя I</option>
+                          <option value="2">Всегда неделя II</option>
+                        </select>
+                      </div>
                       <div class="schedule-form-actions">
                         <button class="ui button" type="submit">Сохранить сетку</button>
                       </div>
@@ -375,10 +384,18 @@
                   <div class="schedule-card ui segment">
                     <div class="schedule-card-head">
                       <h3 class="ui header schedule-card-title">Новый урок</h3>
-                      <p class="schedule-card-hint">Выберите день и номер урока — время заполнится автоматически при необходимости.</p>
+                      <p class="schedule-card-hint">Выберите неделю цикла (I, II или обе), день и номер урока — время подставится по сетке.</p>
                     </div>
                     <form id="schedule-form" class="ui form schedule-inner-form">
                       <div class="schedule-slot-grid">
+                        <div class="field">
+                          <label for="schedule-week-cycle">Неделя цикла</label>
+                          <select id="schedule-week-cycle" required>
+                            <option value="1">Неделя I</option>
+                            <option value="2">Неделя II</option>
+                            <option value="both">Обе недели</option>
+                          </select>
+                        </div>
                         <div class="field">
                           <label>День недели</label>
                           <select id="schedule-day" required>
@@ -437,7 +454,7 @@
                     <div class="schedule-table-toolbar">
                       <div class="schedule-table-toolbar-text">
                         <h3 class="ui header schedule-card-title">Текущее расписание</h3>
-                        <p class="schedule-card-hint schedule-toolbar-hint">Сортировка: день недели, затем время начала.</p>
+                        <p class="schedule-card-hint schedule-toolbar-hint">Сортировка: неделя цикла, день недели, время начала.</p>
                       </div>
                       <button id="print-schedule" class="ui button schedule-print-btn" type="button">
                         <i class="print icon"></i> Печать
@@ -447,6 +464,7 @@
                       <table class="ui celled striped compact table schedule-data-table">
                         <thead>
                           <tr>
+                            <th>Нед.</th>
                             <th>День</th>
                             <th>Время</th>
                             <th>Класс</th>

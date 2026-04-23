@@ -895,10 +895,15 @@ body {
 }
 
 .schedule-settings-grid,
-.schedule-slot-grid,
 .schedule-class-subject-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+
+.schedule-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0 12px;
 }
 
@@ -957,7 +962,7 @@ body {
   margin: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
-  min-width: 640px;
+  min-width: 720px;
 }
 
 .schedule-data-table {
@@ -999,10 +1004,19 @@ body {
   }
 }
 
+@media (max-width: 900px) {
+  .schedule-slot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 520px) {
   .schedule-settings-grid,
-  .schedule-slot-grid,
   .schedule-class-subject-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-slot-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -1535,6 +1549,12 @@ html[data-theme="dark"] .dashboard-stat[data-stat="schedule"] .dashboard-stat-ic
 .dashboard-next-class {
   color: var(--muted);
   font-weight: 500;
+}
+
+.dashboard-next-week {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted-strong);
 }
 
 .home-next-lesson .meta {

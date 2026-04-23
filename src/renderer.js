@@ -33,7 +33,8 @@ const state = {
   schedule: [],
   scheduleSettings: {
     firstLessonStart: "08:00",
-    lessonDurationMin: 45
+    lessonDurationMin: 45,
+    dashboardWeekView: "auto"
   },
   databaseConfig: {
     mode: "local",
@@ -131,7 +132,63 @@ function setUserThemePreference(pref) {
 }
 
 const dayOrder = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
+
+function normalizeWeekCycle(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "1" || v === "2") return v;
+  return "both";
+}
+
+function formatWeekCycleLabel(value) {
+  const c = normalizeWeekCycle(value);
+  if (c === "both") return "Обе";
+  return c === "1" ? "I" : "II";
+}
+
+function weekCycleSortKey(value) {
+  const c = normalizeWeekCycle(value);
+  if (c === "both") return 0;
+  return c === "1" ? 1 : 2;
+}
+
+/** ISO 8601 week number (1–53), Monday-based week */
+function getISOWeek(date) {
+  const t = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayNr = (t.getDay() + 6) % 7;
+  t.setDate(t.getDate() - dayNr + 3);
+  const firstThursday = t.valueOf();
+  t.setMonth(0, 1);
+  if (t.getDay() !== 4) {
+    t.setMonth(0, 1 + ((4 - t.getDay() + 7) % 7));
+  }
+  return 1 + Math.ceil((firstThursday - t) / 604800000);
+}
+
+function getActiveDashboardWeekCycle() {
+  const mode = state.scheduleSettings.dashboardWeekView || "auto";
+  if (mode === "1" || mode === "2") return mode;
+  const w = getISOWeek(new Date());
+  return w % 2 === 1 ? "1" : "2";
+}
+
+function entryMatchesWeekFilter(entry, activeWeek) {
+  const c = normalizeWeekCycle(entry.weekCycle);
+  if (c === "both") return true;
+  return c === activeWeek;
+}
+
+function getDashboardScheduleEntries() {
+  const active = getActiveDashboardWeekCycle();
+  return getCurrentUserScheduleEntries().filter((e) => entryMatchesWeekFilter(e, active));
+}
 const VERSION_CHANGELOG = {
+  "1.0.40": {
+    added: [
+      "Расписание по двухнедельному циклу: урок — неделя I, II или обе; настройка отображаемой недели на дашборде (авто по ISO-неделе или вручную)."
+    ],
+    changed: [],
+    removed: []
+  },
   "1.0.39": {
     added: [],
     changed: [
@@ -437,7 +494,10 @@ function applyLoadedState(parsed) {
   state.schedule = Array.isArray(parsed.schedule) ? parsed.schedule : [];
   state.scheduleSettings = {
     firstLessonStart: parsed.scheduleSettings?.firstLessonStart || "08:00",
-    lessonDurationMin: Number(parsed.scheduleSettings?.lessonDurationMin) || 45
+    lessonDurationMin: Number(parsed.scheduleSettings?.lessonDurationMin) || 45,
+    dashboardWeekView: ["auto", "1", "2"].includes(parsed.scheduleSettings?.dashboardWeekView)
+      ? parsed.scheduleSettings.dashboardWeekView
+      : "auto"
   };
   state.databaseConfig = {
     mode: parsed.databaseConfig?.mode === "remote" ? "remote" : "local",
@@ -780,12 +840,15 @@ function renderGradesJournal() {
 function renderSchedule() {
   const tbody = document.getElementById("schedule-table-body");
   const sorted = [...state.schedule].sort((a, b) => {
+    const wDiff = weekCycleSortKey(a.weekCycle) - weekCycleSortKey(b.weekCycle);
+    if (wDiff !== 0) return wDiff;
     const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
     return dayDiff !== 0 ? dayDiff : a.start.localeCompare(b.start);
   });
   tbody.innerHTML = sorted
     .map(
       (entry) => `<tr>
+        <td>${escapeHtml(formatWeekCycleLabel(entry.weekCycle))}</td>
         <td>${escapeHtml(entry.day)}</td>
         <td>${escapeHtml(entry.start)} - ${escapeHtml(entry.end)}</td>
         <td>${escapeHtml(entry.className)}</td>
@@ -812,13 +875,29 @@ function getCurrentUserScheduleEntries() {
 
 function renderHomeSchedule() {
   const tbody = document.getElementById("home-schedule-table-body");
-  const sorted = [...getCurrentUserScheduleEntries()].sort((a, b) => {
+  const weekLine = document.getElementById("home-schedule-week-line");
+  const activeWeek = getActiveDashboardWeekCycle();
+  const mode = state.scheduleSettings.dashboardWeekView || "auto";
+  if (weekLine) {
+    const modeHint =
+      mode === "auto"
+        ? `номер ISO-недели ${getISOWeek(new Date())} — считаем «неделей ${activeWeek === "1" ? "I" : "II"}»`
+        : "выбрано вручную в настройках сетки";
+    weekLine.textContent = `Показана неделя ${activeWeek === "1" ? "I" : "II"} (${modeHint}). Уроки с типом «Обе» видны всегда.`;
+  }
+
+  const sorted = [...getDashboardScheduleEntries()].sort((a, b) => {
     const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
     return dayDiff !== 0 ? dayDiff : a.start.localeCompare(b.start);
   });
 
   if (sorted.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="center aligned">У вас пока нет записей в расписании.</td></tr>`;
+    const anyMine = getCurrentUserScheduleEntries().length > 0;
+    tbody.innerHTML = `<tr><td colspan="8" class="center aligned">${
+      anyMine
+        ? "Нет уроков для этой недели цикла. Смените неделю на дашборде в настройках сетки или добавьте слоты (I / II / обе)."
+        : "У вас пока нет записей в расписании. Добавьте слоты в разделе «Расписание»."
+    }</td></tr>`;
     return;
   }
 
@@ -875,7 +954,7 @@ function renderHomeDashboard() {
   const versionLine = document.querySelector(".home-version-line");
   if (versionLine) versionLine.classList.toggle("hidden", !hasPermission("view_app_info"));
 
-  const sorted = [...getCurrentUserScheduleEntries()].sort((a, b) => {
+  const sorted = [...getDashboardScheduleEntries()].sort((a, b) => {
     const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
     return dayDiff !== 0 ? dayDiff : a.start.localeCompare(b.start);
   });
@@ -883,7 +962,12 @@ function renderHomeDashboard() {
   const nextLessonsContainer = document.getElementById("home-next-lessons");
 
   if (nextLessons.length === 0) {
-    nextLessonsContainer.innerHTML = `<div class="dashboard-empty">Пока нет уроков в расписании. Добавьте слоты в разделе «Расписание».</div>`;
+    const anyMine = getCurrentUserScheduleEntries().length > 0;
+    nextLessonsContainer.innerHTML = `<div class="dashboard-empty">${
+      anyMine
+        ? "Для текущей недели цикла на дашборде уроков нет. Смените неделю в настройках сетки или добавьте слоты."
+        : "Пока нет уроков в расписании. Добавьте слоты в разделе «Расписание»."
+    }</div>`;
     return;
   }
 
@@ -892,7 +976,7 @@ function renderHomeDashboard() {
       (entry, index) => `<article class="home-next-lesson dashboard-next-item">
       <span class="dashboard-next-index" aria-hidden="true">${index + 1}</span>
       <div class="dashboard-next-body">
-        <div class="title">${escapeHtml(entry.day)} · ${escapeHtml(entry.start)}–${escapeHtml(entry.end)}</div>
+        <div class="title">${escapeHtml(entry.day)} · ${escapeHtml(entry.start)}–${escapeHtml(entry.end)}<span class="dashboard-next-week"> · нед. ${escapeHtml(formatWeekCycleLabel(entry.weekCycle))}</span></div>
         <div class="dashboard-next-subject">${escapeHtml(entry.subject)} <span class="dashboard-next-class">(${escapeHtml(entry.className)})</span></div>
         <div class="meta">Кабинет: ${escapeHtml(entry.room || "-")}${entry.notes ? ` · ${escapeHtml(entry.notes)}` : ""}</div>
       </div>
@@ -1388,9 +1472,14 @@ function setupScheduleHandlers() {
     endInput.value = timeRange.end;
   };
 
+  const dashboardWeekSelect = document.getElementById("schedule-dashboard-week-view");
+
   const syncSettingsForm = () => {
     firstLessonStartInput.value = state.scheduleSettings.firstLessonStart;
     lessonDurationSelect.value = String(state.scheduleSettings.lessonDurationMin);
+    if (dashboardWeekSelect) {
+      dashboardWeekSelect.value = state.scheduleSettings.dashboardWeekView || "auto";
+    }
   };
 
   syncSettingsForm();
@@ -1405,9 +1494,21 @@ function setupScheduleHandlers() {
       notifyUser("Проверьте настройки расписания.", "warning");
       return;
     }
-    state.scheduleSettings = { firstLessonStart, lessonDurationMin };
+    const dashboardWeekView = dashboardWeekSelect?.value || "auto";
+    if (!["auto", "1", "2"].includes(dashboardWeekView)) {
+      notifyUser("Некорректное значение недели для дашборда.", "warning");
+      return;
+    }
+    state.scheduleSettings = {
+      ...state.scheduleSettings,
+      firstLessonStart,
+      lessonDurationMin,
+      dashboardWeekView
+    };
     saveState();
     applyCalculatedTime();
+    renderHomeSchedule();
+    renderHomeDashboard();
     notifyUser("Настройки конструктора расписания сохранены.", "success");
   });
 
@@ -1425,6 +1526,8 @@ function setupScheduleHandlers() {
     const subject = document.getElementById("schedule-subject").value.trim();
     const room = document.getElementById("schedule-room").value.trim();
     const notes = document.getElementById("schedule-notes").value.trim();
+    const weekCycleRaw = document.getElementById("schedule-week-cycle")?.value || "1";
+    const weekCycle = ["1", "2", "both"].includes(weekCycleRaw) ? weekCycleRaw : "1";
     if (!day || !start || !end || !className || !subject || !Number.isInteger(lessonNumber) || lessonNumber < 1) {
       notifyUser("Заполните день, номер урока, класс и предмет.", "warning");
       return;
@@ -1436,6 +1539,7 @@ function setupScheduleHandlers() {
     state.schedule.push({
       id: uid(),
       userId: state.currentUserId,
+      weekCycle,
       day,
       lessonNumber,
       start,
@@ -1450,6 +1554,7 @@ function setupScheduleHandlers() {
     saveState();
     renderSchedule();
     renderHomeSchedule();
+    renderHomeDashboard();
   });
   document.getElementById("schedule-table-body").addEventListener("click", (event) => {
     if (!requirePermission("manage_schedule")) return;
@@ -1459,6 +1564,7 @@ function setupScheduleHandlers() {
     saveState();
     renderSchedule();
     renderHomeSchedule();
+    renderHomeDashboard();
   });
 }
 
@@ -1944,17 +2050,24 @@ function setupPrintHandlers() {
 
   document.getElementById("print-schedule").addEventListener("click", () => {
     const sorted = [...state.schedule].sort((a, b) => {
+      const wDiff = weekCycleSortKey(a.weekCycle) - weekCycleSortKey(b.weekCycle);
+      if (wDiff !== 0) return wDiff;
       const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
       return dayDiff !== 0 ? dayDiff : a.start.localeCompare(b.start);
     });
     const rows = sorted
       .map(
-        (s) => `<tr><td>${escapeHtml(s.day)}</td><td>${escapeHtml(s.start)} - ${escapeHtml(s.end)}</td><td>${escapeHtml(s.className)}</td><td>${escapeHtml(s.subject)}</td><td>${escapeHtml(s.room || "-")}</td><td>${escapeHtml(s.notes || "-")}</td></tr>`
+        (s) =>
+          `<tr><td>${escapeHtml(formatWeekCycleLabel(s.weekCycle))}</td><td>${escapeHtml(s.day)}</td><td>${escapeHtml(
+            s.start
+          )} - ${escapeHtml(s.end)}</td><td>${escapeHtml(s.className)}</td><td>${escapeHtml(s.subject)}</td><td>${escapeHtml(
+            s.room || "-"
+          )}</td><td>${escapeHtml(s.notes || "-")}</td></tr>`
       )
       .join("");
     printHtml(
       "TeachAxo - Расписание",
-      `<table><thead><tr><th>День</th><th>Время</th><th>Класс</th><th>Предмет</th><th>Кабинет</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table>`
+      `<table><thead><tr><th>Нед.</th><th>День</th><th>Время</th><th>Класс</th><th>Предмет</th><th>Кабинет</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table>`
     );
   });
 }
