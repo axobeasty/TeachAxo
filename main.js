@@ -9,11 +9,12 @@ let updateInProgress = false;
 function createMainWindow() {
   if (mainWindow) return;
   mainWindow = new BrowserWindow({
-    width: 1366,
-    height: 850,
-    minWidth: 1100,
-    minHeight: 700,
+    width: 1440,
+    height: 900,
+    minWidth: 1200,
+    minHeight: 760,
     title: "TeachAxo",
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -26,6 +27,7 @@ function createMainWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, "src", "index.html"));
+  mainWindow.maximize();
 }
 
 function createUpdaterWindow() {
@@ -87,6 +89,8 @@ function setupAutoUpdateFlow() {
   createUpdaterWindow();
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
+  // Downloading full installer from GitHub is often faster than differential patches.
+  autoUpdater.disableDifferentialDownload = true;
 
   autoUpdater.on("checking-for-update", () => {
     sendUpdaterStatus("checking", "Проверяем наличие обновлений...");
@@ -108,10 +112,13 @@ function setupAutoUpdateFlow() {
   });
 
   autoUpdater.on("download-progress", (progress) => {
+    const mbps = progress.bytesPerSecond
+      ? `${(progress.bytesPerSecond / (1024 * 1024)).toFixed(2)} МБ/с`
+      : "0.00 МБ/с";
     sendUpdaterStatus(
       "downloading",
-      `Загрузка обновления: ${Math.round(progress.percent)}%`,
-      { progress: progress.percent }
+      `Загрузка обновления: ${Math.round(progress.percent)}% (${mbps})`,
+      { progress: progress.percent, speed: progress.bytesPerSecond }
     );
   });
 

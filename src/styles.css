@@ -1,5 +1,21 @@
+:root {
+  --bg: #f2f5fb;
+  --surface: #ffffff;
+  --surface-soft: #f8faff;
+  --text: #1c2434;
+  --muted: #687387;
+  --primary: #4157ff;
+  --primary-2: #6d3ef3;
+  --border: #e6eaf3;
+  --shadow-lg: 0 14px 30px rgba(27, 39, 71, 0.08);
+  --shadow-md: 0 8px 18px rgba(27, 39, 71, 0.06);
+  --radius-lg: 14px;
+  --radius-md: 10px;
+}
+
 body {
-  background: #f6f8fb;
+  background: radial-gradient(1600px 800px at 20% -10%, #e8edff 0%, #f2f5fb 46%, #edf1f8 100%);
+  color: var(--text);
 }
 
 .hidden {
@@ -16,15 +32,45 @@ body {
 
 .auth-card {
   max-width: 460px;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border: 1px solid var(--border) !important;
 }
 
 .app-shell {
-  margin-top: 20px;
-  margin-bottom: 30px;
+  width: min(1840px, 98vw);
+  max-width: none !important;
+  margin-top: 10px;
+  margin-bottom: 16px;
+}
+
+.app-header,
+.ui.bottom.attached.segment.section,
+.ui.segment {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow-md) !important;
 }
 
 .app-header {
-  margin-bottom: 0;
+  padding: 18px 20px !important;
+}
+
+.ui.top.attached.tabular.menu {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(6px);
+}
+
+.ui.top.attached.tabular.menu .item {
+  font-weight: 600;
+  color: #4e5d78;
+}
+
+.ui.top.attached.tabular.menu .item.active {
+  color: var(--primary);
+  border-color: transparent transparent var(--primary) !important;
 }
 
 .section {
@@ -35,44 +81,76 @@ body {
   display: block;
 }
 
+.ui.form input,
+.ui.form textarea,
+.ui.form select {
+  border-radius: 10px !important;
+  border-color: #dbe3f1 !important;
+}
+
+.ui.form input:focus,
+.ui.form textarea:focus,
+.ui.form select:focus {
+  border-color: #93a3ff !important;
+  box-shadow: 0 0 0 3px rgba(65, 87, 255, 0.14) !important;
+}
+
+.ui.primary.button,
+.ui.button {
+  border-radius: 10px !important;
+}
+
+.ui.primary.button {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%) !important;
+}
+
+.ui.table {
+  border-radius: 10px !important;
+  overflow: hidden;
+}
+
+.ui.table thead th {
+  background: #f4f7ff !important;
+  color: #44506a;
+  font-weight: 700;
+}
+
 .ui.table td .ui.mini.button {
   margin-right: 6px;
 }
 
-.quick-nav .card .description {
-  min-height: 38px;
-}
-
 .home-hero {
-  background: linear-gradient(135deg, #2448ff 0%, #6f3cf0 100%);
+  background: linear-gradient(120deg, #2f4dff 0%, #7344f8 100%);
   color: #fff;
-  border: 0;
+  border: 0 !important;
 }
 
 .home-hero-title {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
 }
 
 .home-hero-subtitle {
-  margin-top: 6px;
-  opacity: 0.9;
+  margin-top: 8px;
+  opacity: 0.92;
+  max-width: 900px;
 }
 
 .home-stats-grid .home-stat-card {
-  border-top: 4px solid #2448ff;
+  border-top: 4px solid var(--primary);
+  border-radius: var(--radius-md) !important;
 }
 
 .home-stat-card .meta {
-  color: #6b7481 !important;
+  color: var(--muted) !important;
   font-size: 12px !important;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .home-stat-card .header {
-  font-size: 28px !important;
-  color: #1f2d3d !important;
+  font-size: 32px !important;
+  color: var(--text) !important;
 }
 
 .home-dashboard-grid {
@@ -85,6 +163,7 @@ body {
 
 .home-quick-menu .item {
   text-align: left;
+  font-weight: 600;
 }
 
 .home-next-lessons-list {
@@ -94,9 +173,9 @@ body {
 }
 
 .home-next-lesson {
-  background: #f5f8ff;
+  background: var(--surface-soft);
   border-left: 4px solid #4d6bfe;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 10px 12px;
 }
 
@@ -127,8 +206,8 @@ body {
 }
 
 .weekly-schedule-entry {
-  background: #eef4ff;
-  border-radius: 6px;
+  background: #edf2ff;
+  border-radius: 8px;
   padding: 8px;
   line-height: 1.35;
 }
@@ -145,6 +224,12 @@ body {
 .weekly-empty-cell {
   color: #9aa5b1;
   text-align: center;
+}
+
+@media (max-width: 1200px) {
+  .app-shell {
+    width: min(1840px, 99vw);
+  }
 }
 
 @media print {
