@@ -547,6 +547,17 @@
           </section>
         </main>
       </div>
+      <div class="app-statusbar" id="app-statusbar">
+        <div class="app-statusbar-left">
+          <span class="label">База данных:</span>
+          <span id="statusbar-db-state">SQLite: подключена</span>
+        </div>
+        <div class="app-statusbar-right">
+          <span id="statusbar-update-state">Проверка обновлений не выполнялась.</span>
+          <button id="statusbar-check-updates" class="ui tiny button" type="button">Проверить</button>
+          <button id="statusbar-install-update" class="ui tiny primary button hidden" type="button">Обновить</button>
+        </div>
+      </div>
     </div>
 
     <script src="./renderer.js"></script>

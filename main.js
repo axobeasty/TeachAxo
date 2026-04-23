@@ -12,6 +12,15 @@ let mainWindow = null;
 let updaterWindow = null;
 let updateInProgress = false;
 let dbService = null;
+let latestAvailableVersion = null;
+let runtimeUpdateTimer = null;
+let cachedUpdateStatus = {
+  state: "idle",
+  message: "Проверка обновлений не выполнялась.",
+  availableVersion: null
+};
+let runtimeCheckForUpdates = async () => cachedUpdateStatus;
+let runtimeInstallUpdate = async () => ({ ok: false, message: "Обновление недоступно." });
 
 function createMainWindow() {
   if (mainWindow) return;
@@ -65,11 +74,22 @@ function sendUpdaterStatus(type, message, extra = {}) {
   updaterWindow.webContents.send("updater:status", { type, message, ...extra });
 }
 
+function sendMainUpdateStatus(payload) {
+  cachedUpdateStatus = { ...cachedUpdateStatus, ...payload };
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send("app:update-status", cachedUpdateStatus);
+}
+
 function openMainAndCloseUpdater() {
   if (updaterWindow && !updaterWindow.isDestroyed()) {
     updaterWindow.close();
   }
   createMainWindow();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.once("did-finish-load", () => {
+      sendMainUpdateStatus(cachedUpdateStatus);
+    });
+  }
 }
 
 function isSkippableUpdaterError(message) {
@@ -89,6 +109,11 @@ function fallbackToMainWithInfo(message) {
 
 function setupAutoUpdateFlow() {
   if (!app.isPackaged) {
+    sendMainUpdateStatus({
+      state: "disabled",
+      message: "Режим разработки: проверка обновлений отключена.",
+      availableVersion: null
+    });
     createMainWindow();
     return;
   }
@@ -244,12 +269,28 @@ function setupAutoUpdateFlow() {
 
     fs.mkdirSync(tempDir, { recursive: true });
     sendUpdaterStatus("downloading", "Скачиваем архив обновления...", { progress: 1 });
+    sendMainUpdateStatus({
+      state: "downloading",
+      message: `Скачиваем обновление ${version}...`,
+      availableVersion: version
+    });
 
     await downloadFileMaxSpeed(archiveUrl, archivePath, (percent) => {
       sendUpdaterStatus("downloading", `Загрузка архива: ${Math.round(percent)}%`, { progress: percent });
+      sendMainUpdateStatus({
+        state: "downloading",
+        message: `Загрузка обновления ${Math.round(percent)}%`,
+        availableVersion: version,
+        progress: percent
+      });
     });
 
     sendUpdaterStatus("installing", "Архив загружен. Распаковываем...");
+    sendMainUpdateStatus({
+      state: "installing",
+      message: "Распаковываем и устанавливаем обновление...",
+      availableVersion: version
+    });
     fs.mkdirSync(unpackDir, { recursive: true });
     const zip = new AdmZip(archivePath);
     zip.extractAllTo(unpackDir, true);
@@ -269,66 +310,138 @@ function setupAutoUpdateFlow() {
     app.quit();
   };
 
-  autoUpdater.on("checking-for-update", () => {
-    sendUpdaterStatus("checking", "Проверяем наличие обновлений...");
-  });
+  const checkForAvailableVersion = async () => {
+    const result = await autoUpdater.checkForUpdates();
+    const version = result?.updateInfo?.version;
+    if (!version) return null;
+    if (String(version) === String(app.getVersion())) return null;
+    return String(version);
+  };
 
-  autoUpdater.on("update-available", (info) => {
-    updateInProgress = true;
-    sendUpdaterStatus(
-      "available",
-      `Найдено обновление ${info.version}. Загружаем архив...`
-    );
-    downloadAndInstallArchive(info.version).catch((error) => {
-      sendUpdaterStatus(
-        "error",
-        `Не удалось установить обновление из архива: ${error.message}`
-      );
-      setTimeout(openMainAndCloseUpdater, 3000);
+  runtimeCheckForUpdates = async () => {
+    if (!app.isPackaged) {
+      sendMainUpdateStatus({
+        state: "disabled",
+        message: "Режим разработки: проверка обновлений отключена.",
+        availableVersion: null
+      });
+      return cachedUpdateStatus;
+    }
+    if (updateInProgress) return cachedUpdateStatus;
+
+    sendMainUpdateStatus({
+      state: "checking",
+      message: "Проверяем наличие обновлений...",
+      availableVersion: latestAvailableVersion
     });
-  });
 
-  autoUpdater.on("download-progress", (progress) => {
-    const mbps = progress.bytesPerSecond
-      ? `${(progress.bytesPerSecond / (1024 * 1024)).toFixed(2)} МБ/с`
-      : "0.00 МБ/с";
-    sendUpdaterStatus(
-      "downloading",
-      `Загрузка обновления: ${Math.round(progress.percent)}% (${mbps})`,
-      { progress: progress.percent, speed: progress.bytesPerSecond }
-    );
-  });
+    try {
+      const availableVersion = await checkForAvailableVersion();
+      if (availableVersion) {
+        latestAvailableVersion = availableVersion;
+        sendMainUpdateStatus({
+          state: "available",
+          message: `Доступно обновление ${availableVersion}. Нажмите "Обновить".`,
+          availableVersion
+        });
+      } else {
+        latestAvailableVersion = null;
+        sendMainUpdateStatus({
+          state: "up-to-date",
+          message: "Установлена последняя версия.",
+          availableVersion: null
+        });
+      }
+    } catch (error) {
+      sendMainUpdateStatus({
+        state: "error",
+        message: `Ошибка проверки обновлений: ${error.message}`,
+        availableVersion: latestAvailableVersion
+      });
+    }
+    return cachedUpdateStatus;
+  };
 
-  autoUpdater.on("update-downloaded", () => {});
-
-  autoUpdater.on("update-not-available", () => {
-    sendUpdaterStatus("up-to-date", "Обновлений нет. Запускаем приложение...");
-    setTimeout(openMainAndCloseUpdater, 1200);
-  });
-
-  autoUpdater.on("error", (error) => {
-    const message = error?.message || "Неизвестная ошибка при проверке обновлений.";
-    if (isSkippableUpdaterError(message)) {
-      fallbackToMainWithInfo(
-        "Релизные файлы обновления еще не готовы (latest.yml отсутствует). Запускаем приложение..."
-      );
-      return;
+  runtimeInstallUpdate = async () => {
+    if (updateInProgress) return { ok: false, message: "Обновление уже выполняется." };
+    if (!latestAvailableVersion) {
+      await runtimeCheckForUpdates();
+    }
+    if (!latestAvailableVersion) {
+      return { ok: false, message: "Новых обновлений не найдено." };
     }
 
-    sendUpdaterStatus("error", `Ошибка обновления: ${message}`);
-    setTimeout(openMainAndCloseUpdater, 3000);
-  });
-
-  autoUpdater.checkForUpdates().catch((error) => {
-    if (isSkippableUpdaterError(error?.message)) {
-      fallbackToMainWithInfo(
-        "Релизные файлы обновления еще не готовы (latest.yml отсутствует). Запускаем приложение..."
-      );
-      return;
+    updateInProgress = true;
+    try {
+      await downloadAndInstallArchive(latestAvailableVersion);
+      return { ok: true };
+    } catch (error) {
+      updateInProgress = false;
+      sendMainUpdateStatus({
+        state: "error",
+        message: `Не удалось установить обновление: ${error.message}`,
+        availableVersion: latestAvailableVersion
+      });
+      return { ok: false, message: error.message };
     }
-    sendUpdaterStatus("error", `Не удалось запустить проверку обновлений: ${error.message}`);
-    setTimeout(openMainAndCloseUpdater, 3000);
-  });
+  };
+
+  const startRuntimeUpdateChecks = () => {
+    if (runtimeUpdateTimer) {
+      clearInterval(runtimeUpdateTimer);
+    }
+    runtimeUpdateTimer = setInterval(() => {
+      runtimeCheckForUpdates().catch(() => {});
+    }, 10 * 60 * 1000);
+  };
+
+  sendUpdaterStatus("checking", "Проверяем наличие обновлений...");
+  checkForAvailableVersion()
+    .then(async (version) => {
+      if (!version) {
+        sendUpdaterStatus("up-to-date", "Обновлений нет. Запускаем приложение...");
+        sendMainUpdateStatus({
+          state: "up-to-date",
+          message: "Установлена последняя версия.",
+          availableVersion: null
+        });
+        setTimeout(() => {
+          openMainAndCloseUpdater();
+          startRuntimeUpdateChecks();
+          runtimeCheckForUpdates().catch(() => {});
+        }, 1200);
+        return;
+      }
+      latestAvailableVersion = version;
+      updateInProgress = true;
+      sendUpdaterStatus("available", `Найдено обновление ${version}. Загружаем архив...`);
+      await downloadAndInstallArchive(version);
+    })
+    .catch((error) => {
+      const message = error?.message || "Неизвестная ошибка при проверке обновлений.";
+      if (isSkippableUpdaterError(message)) {
+        fallbackToMainWithInfo(
+          "Релизные файлы обновления еще не готовы (latest.yml отсутствует). Запускаем приложение..."
+        );
+        sendMainUpdateStatus({
+          state: "up-to-date",
+          message: "Установлена последняя версия.",
+          availableVersion: null
+        });
+        startRuntimeUpdateChecks();
+        return;
+      }
+      sendUpdaterStatus("error", `Ошибка обновления: ${message}`);
+      sendMainUpdateStatus({
+        state: "error",
+        message: `Ошибка проверки обновлений: ${message}`,
+        availableVersion: null
+      });
+      setTimeout(() => {
+        openMainAndCloseUpdater();
+        startRuntimeUpdateChecks();
+      }, 3000);
+    });
 }
 
 function registerDatabaseIpcHandlers() {
@@ -368,6 +481,10 @@ function registerDatabaseIpcHandlers() {
       buildVersion: String(buildVersion)
     };
   });
+
+  ipcMain.handle("app:get-update-status", async () => cachedUpdateStatus);
+  ipcMain.handle("app:check-updates", async () => runtimeCheckForUpdates());
+  ipcMain.handle("app:install-update", async () => runtimeInstallUpdate());
 }
 
 app.whenReady().then(() => {

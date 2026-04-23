@@ -53,6 +53,11 @@ const state = {
     appVersion: "0.0.0",
     buildVersion: "0.0.0"
   },
+  runtimeUpdate: {
+    state: "idle",
+    message: "Проверка обновлений не выполнялась.",
+    availableVersion: null
+  },
   searchQuery: "",
   classSearchQuery: ""
 };
@@ -547,6 +552,31 @@ function renderUsers() {
     .join("");
 }
 
+function renderStatusBar() {
+  const dbProvider = String(state.storageInfo.provider || "sqlite").toUpperCase();
+  const dbPath = state.storageInfo.sqlitePath || "-";
+  const dbStateNode = document.getElementById("statusbar-db-state");
+  if (dbStateNode) {
+    dbStateNode.textContent = `${dbProvider}: ${dbPath}`;
+  }
+
+  const updateStateNode = document.getElementById("statusbar-update-state");
+  if (updateStateNode) {
+    updateStateNode.textContent = state.runtimeUpdate.message || "Проверка обновлений не выполнялась.";
+  }
+
+  const installButton = document.getElementById("statusbar-install-update");
+  if (installButton) {
+    const hasUpdate = state.runtimeUpdate.state === "available" && Boolean(state.runtimeUpdate.availableVersion);
+    installButton.classList.toggle("hidden", !hasUpdate);
+    if (hasUpdate) {
+      installButton.textContent = `Обновить до ${state.runtimeUpdate.availableVersion}`;
+    } else {
+      installButton.textContent = "Обновить";
+    }
+  }
+}
+
 function renderAll() {
   renderClasses();
   renderClassesDatalist();
@@ -559,6 +589,7 @@ function renderAll() {
   renderSettingsPage();
   renderRoles();
   renderUsers();
+  renderStatusBar();
   applyAccessControl();
 }
 
@@ -888,6 +919,68 @@ function setupDatabaseSettingsHandlers() {
   });
 }
 
+function setupStatusBarHandlers() {
+  const checkButton = document.getElementById("statusbar-check-updates");
+  const installButton = document.getElementById("statusbar-install-update");
+
+  const applyUpdateStatus = (payload) => {
+    state.runtimeUpdate = {
+      state: payload?.state || "idle",
+      message: payload?.message || "Проверка обновлений не выполнялась.",
+      availableVersion: payload?.availableVersion || null
+    };
+    renderStatusBar();
+  };
+
+  if (window.teachAxo?.onUpdateStatus) {
+    window.teachAxo.onUpdateStatus((payload) => applyUpdateStatus(payload));
+  }
+
+  if (checkButton) {
+    checkButton.addEventListener("click", async () => {
+      if (!window.teachAxo?.checkUpdates) return;
+      checkButton.disabled = true;
+      try {
+        const status = await window.teachAxo.checkUpdates();
+        applyUpdateStatus(status);
+      } catch (error) {
+        applyUpdateStatus({
+          state: "error",
+          message: `Ошибка проверки обновлений: ${error.message}`,
+          availableVersion: null
+        });
+      } finally {
+        checkButton.disabled = false;
+      }
+    });
+  }
+
+  if (installButton) {
+    installButton.addEventListener("click", async () => {
+      if (!window.teachAxo?.installUpdate) return;
+      installButton.disabled = true;
+      try {
+        const result = await window.teachAxo.installUpdate();
+        if (!result?.ok) {
+          applyUpdateStatus({
+            state: "error",
+            message: result?.message || "Не удалось запустить обновление.",
+            availableVersion: state.runtimeUpdate.availableVersion
+          });
+        }
+      } catch (error) {
+        applyUpdateStatus({
+          state: "error",
+          message: `Ошибка запуска обновления: ${error.message}`,
+          availableVersion: state.runtimeUpdate.availableVersion
+        });
+      } finally {
+        installButton.disabled = false;
+      }
+    });
+  }
+}
+
 function buildPrintablePage(title, contentHtml) {
   return `<!doctype html><html lang="ru"><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
   body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
@@ -1020,6 +1113,18 @@ async function init() {
   } catch (error) {
     console.warn("Не удалось получить метаданные приложения:", error);
   }
+  try {
+    const updateStatus = await window.teachAxo?.getUpdateStatus?.();
+    if (updateStatus) {
+      state.runtimeUpdate = {
+        state: updateStatus.state || "idle",
+        message: updateStatus.message || "Проверка обновлений не выполнялась.",
+        availableVersion: updateStatus.availableVersion || null
+      };
+    }
+  } catch (error) {
+    console.warn("Не удалось получить статус обновлений:", error);
+  }
   const versionLabel = getVersionLabel();
   const appVersionNode = document.getElementById("app-version");
   if (appVersionNode) appVersionNode.textContent = versionLabel;
@@ -1034,6 +1139,7 @@ async function init() {
   setupScheduleHandlers();
   setupAccessHandlers();
   setupDatabaseSettingsHandlers();
+  setupStatusBarHandlers();
   setupPrintHandlers();
   setupAuthHandlers();
 }

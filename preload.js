@@ -1,7 +1,13 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("teachAxo", {
-  getMeta: () => ipcRenderer.invoke("app:get-meta")
+  getMeta: () => ipcRenderer.invoke("app:get-meta"),
+  getUpdateStatus: () => ipcRenderer.invoke("app:get-update-status"),
+  checkUpdates: () => ipcRenderer.invoke("app:check-updates"),
+  installUpdate: () => ipcRenderer.invoke("app:install-update"),
+  onUpdateStatus: (callback) => {
+    ipcRenderer.on("app:update-status", (_event, payload) => callback(payload));
+  }
 });
 
 contextBridge.exposeInMainWorld("teachAxoDb", {
