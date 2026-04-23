@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("node:fs");
 const https = require("node:https");
+const os = require("node:os");
 const { spawn } = require("node:child_process");
 const { autoUpdater } = require("electron-updater");
 const AdmZip = require("adm-zip");
@@ -102,12 +103,34 @@ function setupAutoUpdateFlow() {
 
   const getUpdateArchiveName = (version) => `TeachAxo-Update-${version}.zip`;
 
-  const downloadFile = (url, destinationPath, onProgress) =>
+  const getUrlMeta = (url) =>
+    new Promise((resolve, reject) => {
+      const request = https.request(url, { method: "HEAD" }, (response) => {
+        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+          response.destroy();
+          resolve(getUrlMeta(response.headers.location));
+          return;
+        }
+        if (response.statusCode !== 200) {
+          reject(new Error(`Статус HEAD-запроса: ${response.statusCode}`));
+          return;
+        }
+        resolve({
+          url,
+          total: Number(response.headers["content-length"] || 0),
+          acceptsRanges: String(response.headers["accept-ranges"] || "").toLowerCase().includes("bytes")
+        });
+      });
+      request.on("error", reject);
+      request.end();
+    });
+
+  const downloadFileSingle = (url, destinationPath, onProgress) =>
     new Promise((resolve, reject) => {
       const request = https.get(url, (response) => {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
           response.destroy();
-          resolve(downloadFile(response.headers.location, destinationPath, onProgress));
+          resolve(downloadFileSingle(response.headers.location, destinationPath, onProgress));
           return;
         }
         if (response.statusCode !== 200) {
@@ -124,14 +147,79 @@ function setupAutoUpdateFlow() {
           if (onProgress && total > 0) onProgress((loaded / total) * 100);
         });
         response.pipe(file);
-        file.on("finish", () => {
-          file.close(() => resolve(destinationPath));
-        });
-        file.on("error", (error) => reject(error));
+        file.on("finish", () => file.close(() => resolve(destinationPath)));
+        file.on("error", reject);
       });
 
-      request.on("error", (error) => reject(error));
+      request.on("error", reject);
     });
+
+  const downloadChunk = (url, start, end, destinationPath, reportProgress) =>
+    new Promise((resolve, reject) => {
+      const request = https.get(
+        url,
+        {
+          headers: {
+            Range: `bytes=${start}-${end}`
+          }
+        },
+        (response) => {
+          if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+            response.destroy();
+            resolve(downloadChunk(response.headers.location, start, end, destinationPath, reportProgress));
+            return;
+          }
+          if (response.statusCode !== 206) {
+            reject(new Error(`Chunk download status: ${response.statusCode}`));
+            return;
+          }
+          const file = fs.createWriteStream(destinationPath, { flags: "r+", start });
+          response.on("data", (chunk) => reportProgress(chunk.length));
+          response.pipe(file);
+          file.on("finish", () => file.close(() => resolve()));
+          file.on("error", reject);
+        }
+      );
+      request.on("error", reject);
+    });
+
+  const downloadFileMaxSpeed = async (url, destinationPath, onProgress) => {
+    const meta = await getUrlMeta(url);
+    const total = meta.total;
+    const canParallel = meta.acceptsRanges && total > 2 * 1024 * 1024;
+
+    if (!canParallel) {
+      return downloadFileSingle(meta.url, destinationPath, onProgress);
+    }
+
+    const cpuCount = os.cpus()?.length || 4;
+    const streamCount = Math.max(4, Math.min(12, cpuCount * 2));
+    const chunkSize = Math.ceil(total / streamCount);
+    let loaded = 0;
+    let lastReported = 0;
+
+    fs.writeFileSync(destinationPath, Buffer.alloc(total));
+
+    const reportProgress = (bytes) => {
+      loaded += bytes;
+      if (!onProgress || total <= 0) return;
+      const percent = (loaded / total) * 100;
+      if (percent - lastReported >= 0.5 || percent >= 100) {
+        lastReported = percent;
+        onProgress(percent);
+      }
+    };
+
+    const tasks = [];
+    for (let i = 0; i < streamCount; i += 1) {
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize - 1, total - 1);
+      if (start > end) continue;
+      tasks.push(downloadChunk(meta.url, start, end, destinationPath, reportProgress));
+    }
+    await Promise.all(tasks);
+    return destinationPath;
+  };
 
   const findInstallerExe = (directoryPath) => {
     const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
@@ -157,7 +245,7 @@ function setupAutoUpdateFlow() {
     fs.mkdirSync(tempDir, { recursive: true });
     sendUpdaterStatus("downloading", "Скачиваем архив обновления...", { progress: 1 });
 
-    await downloadFile(archiveUrl, archivePath, (percent) => {
+    await downloadFileMaxSpeed(archiveUrl, archivePath, (percent) => {
       sendUpdaterStatus("downloading", `Загрузка архива: ${Math.round(percent)}%`, { progress: percent });
     });
 
