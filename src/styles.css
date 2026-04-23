@@ -29,31 +29,40 @@
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0e1117;
-  --surface: #161b22;
-  --surface-2: #21262d;
-  --text: #f0f3f6;
-  --muted: #8b949e;
-  --line: #30363d;
-  --primary: #58a6ff;
+  --bg: #0b0d12;
+  --surface: #12151c;
+  --surface-2: #1a1f2a;
+  --text: #e8eaed;
+  --muted: #9aa0ae;
+  --line: #2a3140;
+  --primary: #6eb6ff;
   --danger: #f85149;
-  --ink: #e6edf3;
-  --nav-active-bg: rgba(88, 166, 255, 0.18);
-  --nav-active-fg: #79c0ff;
-  --elevated: #1c2128;
-  --table-head-bg: #21262d;
-  --table-head-fg: #adbac7;
-  --muted-strong: #768390;
-  --quick-hover-bg: #2d333b;
-  --quick-hover-line: #444c56;
+  --ink: #dde1e8;
+  --nav-active-bg: rgba(110, 182, 255, 0.14);
+  --nav-active-fg: #9ccaff;
+  --elevated: #161b24;
+  --table-head-bg: #1e2430;
+  --table-head-fg: #b4bac4;
+  --muted-strong: #8b939e;
+  --quick-hover-bg: #222833;
+  --quick-hover-line: #3d4554;
   --fg-disabled: #6e7681;
-  --bg-disabled: #21262d;
-  --link: #79c0ff;
-  --progress-track: #30363d;
-  --slot-border: #373e47;
-  --slot-bg-top: #222c3c;
-  --slot-bg-bottom: #1a2332;
-  --pill-label: #8b949e;
+  --bg-disabled: #1a1f28;
+  --link: #8dc4ff;
+  --progress-track: #2a3140;
+  --slot-border: #343b4a;
+  --slot-bg-top: #1c2230;
+  --slot-bg-bottom: #141a24;
+  --pill-label: #8b939e;
+  --focus-ring: rgba(110, 182, 255, 0.35);
+  --dash-icon-classes-bg: rgba(129, 140, 248, 0.14);
+  --dash-icon-classes-fg: #a5b4fc;
+  --dash-icon-students-bg: rgba(52, 211, 153, 0.12);
+  --dash-icon-students-fg: #6ee7b7;
+  --dash-icon-grades-bg: rgba(251, 191, 36, 0.12);
+  --dash-icon-grades-fg: #fcd34d;
+  --dash-icon-schedule-bg: rgba(96, 165, 250, 0.14);
+  --dash-icon-schedule-fg: #93c5fd;
 }
 
 *,
@@ -991,6 +1000,26 @@ body {
   color: #1d4ed8;
 }
 
+html[data-theme="dark"] .dashboard-stat[data-stat="classes"] .dashboard-stat-icon {
+  background: var(--dash-icon-classes-bg);
+  color: var(--dash-icon-classes-fg);
+}
+
+html[data-theme="dark"] .dashboard-stat[data-stat="students"] .dashboard-stat-icon {
+  background: var(--dash-icon-students-bg);
+  color: var(--dash-icon-students-fg);
+}
+
+html[data-theme="dark"] .dashboard-stat[data-stat="grades"] .dashboard-stat-icon {
+  background: var(--dash-icon-grades-bg);
+  color: var(--dash-icon-grades-fg);
+}
+
+html[data-theme="dark"] .dashboard-stat[data-stat="schedule"] .dashboard-stat-icon {
+  background: var(--dash-icon-schedule-bg);
+  color: var(--dash-icon-schedule-fg);
+}
+
 .dashboard-stat-body {
   min-width: 0;
 }
@@ -1291,6 +1320,236 @@ body {
   background: var(--primary);
 }
 
+/* Dark theme — Semantic UI & surfaces (tables, segments, messages, inputs) */
+html[data-theme="dark"] .ui.table {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--line) !important;
+}
+
+html[data-theme="dark"] .ui.table tbody tr td {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-top-color: var(--line) !important;
+}
+
+html[data-theme="dark"] .ui.striped.table > tbody > tr:nth-child(2n) {
+  background: var(--surface-2) !important;
+}
+
+html[data-theme="dark"] .ui.striped.table > tbody > tr:nth-child(2n) > td {
+  background: transparent !important;
+}
+
+html[data-theme="dark"] .ui.celled.table tr th,
+html[data-theme="dark"] .ui.celled.table tr td {
+  border-left-color: var(--line) !important;
+}
+
+html[data-theme="dark"] .ui.selectable.table tbody tr:hover {
+  background: var(--surface-2) !important;
+}
+
+html[data-theme="dark"] .ui.selectable.table tbody tr:hover > td {
+  background: transparent !important;
+}
+
+html[data-theme="dark"] .ui.segment {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--line) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .ui.raised.segment {
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .ui.header {
+  color: var(--text) !important;
+}
+
+html[data-theme="dark"] .ui.header .sub.header {
+  color: var(--muted) !important;
+}
+
+html[data-theme="dark"] .ui.basic.label,
+html[data-theme="dark"] .ui.label {
+  background: var(--surface-2) !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+
+html[data-theme="dark"] .ui.checkbox label {
+  color: var(--text) !important;
+}
+
+html[data-theme="dark"] .ui.checkbox label:before {
+  background: var(--surface-2) !important;
+  border-color: var(--line) !important;
+}
+
+html[data-theme="dark"] .ui.checkbox input:checked ~ label:before {
+  background: var(--surface-2) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+html[data-theme="dark"] .ui.form input[type="text"],
+html[data-theme="dark"] .ui.form input[type="password"],
+html[data-theme="dark"] .ui.form input[type="number"],
+html[data-theme="dark"] .ui.form input[type="date"],
+html[data-theme="dark"] .ui.form input[type="time"],
+html[data-theme="dark"] .ui.form input[type="email"],
+html[data-theme="dark"] .ui.form select,
+html[data-theme="dark"] .ui.form textarea,
+html[data-theme="dark"] .ui.input > input,
+html[data-theme="dark"] .ui.action.input > input {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-color: var(--line) !important;
+}
+
+html[data-theme="dark"] .ui.form input:focus,
+html[data-theme="dark"] .ui.input > input:focus,
+html[data-theme="dark"] .ui.action.input > input:focus,
+html[data-theme="dark"] .ui.form select:focus,
+html[data-theme="dark"] .ui.form textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px var(--focus-ring) !important;
+}
+
+html[data-theme="dark"] .ui.form input::placeholder,
+html[data-theme="dark"] .ui.input input::placeholder,
+html[data-theme="dark"] .ui.form textarea::placeholder {
+  color: var(--muted) !important;
+  opacity: 0.9;
+}
+
+html[data-theme="dark"] .ui.action.input > .button {
+  background: var(--elevated) !important;
+  color: var(--text) !important;
+  border-color: var(--line) !important;
+}
+
+html[data-theme="dark"] .ui.action.input > .button:hover {
+  background: var(--surface-2) !important;
+}
+
+html[data-theme="dark"] .ui.button:not(.primary):not(.red):not(.green) {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+}
+
+html[data-theme="dark"] .ui.button:not(.primary):not(.red):not(.green):hover {
+  background: var(--elevated) !important;
+}
+
+html[data-theme="dark"] .ui.primary.button {
+  background: var(--primary) !important;
+  color: #0b0d12 !important;
+  border-color: transparent !important;
+}
+
+html[data-theme="dark"] .ui.primary.button:hover {
+  filter: brightness(1.06);
+}
+
+html[data-theme="dark"] .ui.basic.button {
+  background: transparent !important;
+  color: var(--text) !important;
+  border-color: var(--line) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .ui.basic.button:hover {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+}
+
+html[data-theme="dark"] .ui.red.button,
+html[data-theme="dark"] .ui.negative.button {
+  background: rgba(248, 81, 73, 0.18) !important;
+  color: #ffb1ad !important;
+  border: 1px solid rgba(248, 81, 73, 0.45) !important;
+}
+
+html[data-theme="dark"] .ui.message {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-color: var(--line) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .ui.info.message {
+  background: rgba(110, 182, 255, 0.08) !important;
+  border-color: rgba(110, 182, 255, 0.32) !important;
+}
+
+html[data-theme="dark"] .ui.warning.message {
+  background: rgba(251, 191, 36, 0.08) !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+  color: var(--text) !important;
+}
+
+html[data-theme="dark"] .ui.red.message,
+html[data-theme="dark"] .ui.negative.message {
+  background: rgba(248, 81, 73, 0.1) !important;
+  color: #ffc8c4 !important;
+  border-color: rgba(248, 81, 73, 0.4) !important;
+}
+
+html[data-theme="dark"] .ui.positive.message,
+html[data-theme="dark"] .ui.success.message {
+  background: rgba(46, 160, 67, 0.1) !important;
+  color: #7ee787 !important;
+  border-color: rgba(46, 160, 67, 0.38) !important;
+}
+
+html[data-theme="dark"] .ui.list .item {
+  color: var(--text);
+}
+
+html[data-theme="dark"] .ui.list .item a.header {
+  color: var(--link) !important;
+}
+
+html[data-theme="dark"] .ui.divider {
+  border-top-color: var(--line) !important;
+  border-bottom-color: var(--line) !important;
+}
+
+html[data-theme="dark"] .ui.horizontal.divider:before,
+html[data-theme="dark"] .ui.horizontal.divider:after {
+  border-top-color: var(--line) !important;
+}
+
+html[data-theme="dark"] select option {
+  background-color: var(--surface);
+  color: var(--text);
+}
+
+html[data-theme="dark"] .auth-screen {
+  background: radial-gradient(1200px 600px at 20% 0%, rgba(110, 182, 255, 0.06), transparent 55%),
+    var(--bg);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+  border: 2px solid var(--bg);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
 /* Semantic tuning */
 .ui.table {
   border: 1px solid var(--line) !important;
@@ -1306,36 +1565,6 @@ body {
 .ui.form .field > label {
   color: var(--ink) !important;
   font-weight: 700 !important;
-}
-
-html[data-theme="dark"] .ui.form input[type="text"],
-html[data-theme="dark"] .ui.form input[type="password"],
-html[data-theme="dark"] .ui.form input[type="number"],
-html[data-theme="dark"] .ui.form input[type="date"],
-html[data-theme="dark"] .ui.form input[type="time"],
-html[data-theme="dark"] .ui.form input[type="email"],
-html[data-theme="dark"] .ui.form select,
-html[data-theme="dark"] .ui.form textarea {
-  background: var(--surface) !important;
-  color: var(--text) !important;
-}
-
-html[data-theme="dark"] .ui.button:not(.primary):not(.red) {
-  background: var(--surface-2) !important;
-  color: var(--text) !important;
-  border: 1px solid var(--line) !important;
-}
-
-html[data-theme="dark"] .ui.info.message,
-html[data-theme="dark"] .ui.warning.message {
-  background: var(--surface-2) !important;
-  color: var(--text) !important;
-  border-color: var(--line) !important;
-  box-shadow: none !important;
-}
-
-html[data-theme="dark"] .ui.list .item {
-  color: var(--text);
 }
 
 .ui.form input[type="text"],
