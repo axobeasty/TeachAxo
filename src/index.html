@@ -409,7 +409,7 @@
 
           <section class="section page-card" data-section-panel="access">
         <div class="ui stackable grid">
-          <div class="eight wide column">
+          <div class="eight wide column" id="access-roles-column">
             <h3 class="ui header">Роли и права</h3>
             <form id="role-form" class="ui form">
               <div class="field">
@@ -418,6 +418,7 @@
               </div>
               <div class="grouped fields">
                 <label>Права</label>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="view_dashboard" /><label>Просмотр дашборда</label></div></div>
                 <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_classes" /><label>Управление классами</label></div></div>
                 <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_students" /><label>Управление учениками</label></div></div>
                 <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_grades" /><label>Управление оценками</label></div></div>
@@ -425,6 +426,13 @@
                 <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="print_data" /><label>Печать данных</label></div></div>
                 <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_roles" /><label>Управление ролями</label></div></div>
                 <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_users" /><label>Управление пользователями</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="access_profile" /><label>Раздел «Профиль»</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="edit_profile" /><label>Редактирование своего профиля</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="access_settings" /><label>Раздел «Настройки»</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="view_app_info" /><label>Сведения о версии и журнал изменений</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_database" /><label>Настройка базы данных и миграция</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_appearance" /><label>Внешний вид приложения (иконка)</label></div></div>
+                <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_updates" /><label>Проверка и установка обновлений</label></div></div>
               </div>
               <button class="ui primary button" type="submit">Создать роль</button>
             </form>
@@ -439,7 +447,7 @@
               <tbody id="roles-table-body"></tbody>
             </table>
           </div>
-          <div class="eight wide column">
+          <div class="eight wide column" id="access-users-column">
             <h3 class="ui header">Пользователи</h3>
             <form id="user-form" class="ui form">
               <div class="field">
@@ -534,7 +542,11 @@
                 <p>Управление приложением, базой данных, внешним видом и историей обновлений.</p>
               </div>
 
-              <div class="settings-overview-grid">
+              <div id="settings-empty-hint" class="ui info message hidden">
+                У вашей роли нет прав на отображение блоков в этом разделе. Обратитесь к администратору.
+              </div>
+
+              <div class="settings-overview-grid" id="settings-overview-section">
                 <div class="ui segment settings-card">
                   <h3 class="ui header">Информация о приложении</h3>
                   <div class="settings-kv-row">
@@ -563,7 +575,7 @@
                 </div>
               </div>
 
-              <div class="ui segment settings-card">
+              <div class="ui segment settings-card" id="settings-database-segment">
                 <h3 class="ui header">Источник данных</h3>
                 <div class="settings-kv-row">
                   <span>Текущее хранилище</span>
@@ -632,7 +644,7 @@
                 </div>
               </div>
 
-              <div class="ui segment settings-card">
+              <div class="ui segment settings-card" id="settings-appearance-segment">
                 <h3 class="ui header">Внешний вид</h3>
                 <form id="app-appearance-form" class="ui form settings-form-block">
                   <div class="field">
@@ -649,6 +661,7 @@
                 <div id="app-appearance-status" class="ui tiny message hidden"></div>
               </div>
 
+              <div id="settings-changelog-blocks">
               <div class="ui segment settings-card">
                 <h3 class="ui header">Что нового в текущей версии</h3>
                 <div class="ui stackable three column grid">
@@ -670,6 +683,7 @@
               <div class="ui segment settings-card">
                 <h3 class="ui header">Лог изменений по версиям</h3>
                 <div id="version-history-log" class="ui relaxed divided list"></div>
+              </div>
               </div>
             </div>
           </section>

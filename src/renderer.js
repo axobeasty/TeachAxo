@@ -1,18 +1,29 @@
 const PERMISSIONS = {
+  view_dashboard: "Просмотр дашборда",
   manage_classes: "Управление классами",
   manage_students: "Управление учениками",
   manage_grades: "Управление оценками",
   manage_schedule: "Управление расписанием",
   print_data: "Печать данных",
   manage_roles: "Управление ролями",
-  manage_users: "Управление пользователями"
+  manage_users: "Управление пользователями",
+  access_profile: "Раздел «Профиль»",
+  edit_profile: "Редактирование своего профиля",
+  access_settings: "Раздел «Настройки»",
+  view_app_info: "Сведения о версии и журнал изменений",
+  manage_database: "Настройка базы данных и миграция",
+  manage_appearance: "Внешний вид приложения (иконка)",
+  manage_updates: "Проверка и установка обновлений"
 };
 
 const SECTION_PERMISSIONS = {
+  home: "view_dashboard",
   classes: "manage_classes",
   students: "manage_students",
   grades: "manage_grades",
-  schedule: "manage_schedule"
+  schedule: "manage_schedule",
+  profile: "access_profile",
+  settings: "access_settings"
 };
 
 const state = {
@@ -219,18 +230,27 @@ function hasPermission(permission) {
 }
 
 function canAccessSection(section) {
-  if (section === "home" || section === "settings" || section === "profile") return true;
   if (section === "access") return hasPermission("manage_roles") || hasPermission("manage_users");
-  return hasPermission(SECTION_PERMISSIONS[section] ?? "");
+  const permission = SECTION_PERMISSIONS[section];
+  if (!permission) return false;
+  return hasPermission(permission);
+}
+
+function getDefaultSection() {
+  const order = ["home", "classes", "students", "grades", "schedule", "access", "profile", "settings"];
+  for (const id of order) {
+    if (canAccessSection(id)) return id;
+  }
+  return null;
 }
 
 function getSectionAccessMessage(section) {
   if (section === "access") {
-    return "У вас нет прав на раздел 'Доступ'. Нужны права управления ролями или пользователями.";
+    return "У вас нет прав на раздел «Доступ». Нужны права «Управление ролями» или «Управление пользователями».";
   }
   const permission = SECTION_PERMISSIONS[section];
   if (!permission) return "У вас нет прав на открытие этого раздела.";
-  return `У вас нет права '${PERMISSIONS[permission] || permission}' для открытия этого раздела.`;
+  return `У вас нет права «${PERMISSIONS[permission] || permission}» для открытия этого раздела.`;
 }
 
 function applyLoadedState(parsed) {
@@ -317,7 +337,7 @@ function seedAccessData() {
     state.roles.push({
       id: uid(),
       name: "Администратор",
-      permissions: Object.keys(PERMISSIONS),
+      permissions: [...Object.keys(PERMISSIONS)],
       isSystem: true
     });
   }
@@ -338,13 +358,23 @@ function seedAccessData() {
   }
 }
 
+function syncAdministratorPermissions() {
+  const admin = state.roles.find((r) => r.isSystem && r.name === "Администратор");
+  if (!admin || !Array.isArray(admin.permissions)) return;
+  const all = Object.keys(PERMISSIONS);
+  if (all.every((p) => admin.permissions.includes(p))) return;
+  admin.permissions = [...all];
+  saveState();
+}
+
 function activateSection(section, options = {}) {
   const silent = Boolean(options?.silent);
   const allowedTarget = canAccessSection(section);
   if (!allowedTarget && !silent) {
     notifyUser(getSectionAccessMessage(section), "warning");
   }
-  const target = canAccessSection(section) ? section : "home";
+  const fallback = getDefaultSection();
+  const target = allowedTarget ? section : fallback !== null ? fallback : "home";
   document.querySelectorAll(".nav-item").forEach((item) => {
     item.classList.remove("active");
     const allowed = canAccessSection(item.dataset.section);
@@ -365,8 +395,47 @@ function applyAccessControl() {
     button.disabled = !allowed;
     button.title = allowed ? "" : getSectionAccessMessage(button.dataset.goSection);
   });
-  document.getElementById("print-class-list").classList.toggle("hidden", !hasPermission("print_data"));
-  document.getElementById("print-schedule").classList.toggle("hidden", !hasPermission("print_data"));
+  const printClassBtn = document.getElementById("print-class-list");
+  const printScheduleBtn = document.getElementById("print-schedule");
+  if (printClassBtn) printClassBtn.classList.toggle("hidden", !hasPermission("print_data"));
+  if (printScheduleBtn) printScheduleBtn.classList.toggle("hidden", !hasPermission("print_data"));
+
+  const rolesCol = document.getElementById("access-roles-column");
+  const usersCol = document.getElementById("access-users-column");
+  if (rolesCol) rolesCol.classList.toggle("hidden", !hasPermission("manage_roles"));
+  if (usersCol) usersCol.classList.toggle("hidden", !hasPermission("manage_users"));
+
+  const overview = document.getElementById("settings-overview-section");
+  const dbSeg = document.getElementById("settings-database-segment");
+  const appSeg = document.getElementById("settings-appearance-segment");
+  const changelogWrap = document.getElementById("settings-changelog-blocks");
+  if (overview) overview.classList.toggle("hidden", !hasPermission("view_app_info"));
+  if (dbSeg) dbSeg.classList.toggle("hidden", !hasPermission("manage_database"));
+  if (appSeg) appSeg.classList.toggle("hidden", !hasPermission("manage_appearance"));
+  if (changelogWrap) changelogWrap.classList.toggle("hidden", !hasPermission("view_app_info"));
+
+  const settingsHint = document.getElementById("settings-empty-hint");
+  if (settingsHint) {
+    const anySettingsBlock =
+      hasPermission("view_app_info") ||
+      hasPermission("manage_database") ||
+      hasPermission("manage_appearance");
+    const showHint = hasPermission("access_settings") && !anySettingsBlock;
+    settingsHint.classList.toggle("hidden", !showHint);
+  }
+
+  const profileForm = document.getElementById("profile-form");
+  if (profileForm) {
+    const canEdit = hasPermission("edit_profile");
+    profileForm.querySelectorAll("input,button").forEach((el) => {
+      if (el.type === "submit") {
+        el.disabled = !canEdit;
+      } else {
+        el.disabled = !canEdit;
+      }
+    });
+    profileForm.title = canEdit ? "" : "Нет права «Редактирование своего профиля».";
+  }
 }
 
 function setupNav() {
@@ -560,6 +629,9 @@ function renderHomeDashboard() {
     : "Добро пожаловать в TeachAxo. Здесь собрана вся ключевая информация по классам, ученикам и урокам.";
   document.getElementById("home-hero-subtitle").textContent = subtitle;
 
+  const versionLine = document.querySelector(".home-version-line");
+  if (versionLine) versionLine.classList.toggle("hidden", !hasPermission("view_app_info"));
+
   const sorted = [...getCurrentUserScheduleEntries()].sort((a, b) => {
     const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
     return dayDiff !== 0 ? dayDiff : a.start.localeCompare(b.start);
@@ -662,7 +734,7 @@ function renderRoles() {
   tbody.innerHTML = state.roles
     .map((role) => `<tr>
       <td>${escapeHtml(role.name)}</td>
-      <td>${role.permissions.map((p) => escapeHtml(PERMISSIONS[p])).join(", ") || "-"}</td>
+      <td>${role.permissions.map((p) => escapeHtml(PERMISSIONS[p] || p)).join(", ") || "-"}</td>
       <td><button class="ui mini red button" data-delete-role="${role.id}">Удалить</button></td>
     </tr>`)
     .join("");
@@ -696,12 +768,17 @@ function renderStatusBar() {
   const dbPath = state.storageInfo.sqlitePath || "-";
   const dbNameNode = document.getElementById("statusbar-db-name");
   const dbStateNode = document.getElementById("statusbar-db-state");
+  const canDbFolder = hasPermission("manage_database");
+  const isLocalDb = dbProvider === "sqlite" || state.dbRuntimeStatus.mode === "local";
   if (dbNameNode) {
     const fileName = state.dbRuntimeStatus.sqliteFileName || (dbPath !== "-" ? dbPath.split(/[\\/]/).pop() : "teachaxo.sqlite");
     dbNameNode.textContent = fileName;
-    const isLocal = dbProvider === "sqlite" || state.dbRuntimeStatus.mode === "local";
-    dbNameNode.disabled = !isLocal;
-    dbNameNode.title = isLocal ? "Открыть папку с базой данных" : "Для удаленной БД открытие файла недоступно";
+    dbNameNode.disabled = !isLocalDb || !canDbFolder;
+    dbNameNode.title = !isLocalDb
+      ? "Для удаленной БД открытие файла недоступно"
+      : canDbFolder
+        ? "Открыть папку с базой данных"
+        : "Нет права «Настройка базы данных и миграция».";
   }
   if (dbStateNode) {
     const prefix = dbProvider === "mysql" || state.dbRuntimeStatus.mode === "remote" ? "Remote DB" : "SQLite";
@@ -731,7 +808,8 @@ function renderStatusBar() {
     const hasUpdate =
       (state.runtimeUpdate.state === "available" || state.runtimeUpdate.state === "downloaded") &&
       Boolean(state.runtimeUpdate.availableVersion);
-    installButton.classList.toggle("hidden", !hasUpdate);
+    const canUpdates = hasPermission("manage_updates");
+    installButton.classList.toggle("hidden", !hasUpdate || !canUpdates);
     if (hasUpdate) {
       installButton.textContent =
         state.runtimeUpdate.state === "downloaded"
@@ -740,6 +818,15 @@ function renderStatusBar() {
     } else {
       installButton.textContent = "Обновить";
     }
+    installButton.disabled = !canUpdates;
+  }
+
+  const checkButton = document.getElementById("statusbar-check-updates");
+  const canUpdates = hasPermission("manage_updates");
+  if (checkButton) {
+    checkButton.disabled = !canUpdates;
+    checkButton.classList.toggle("disabled", !canUpdates);
+    checkButton.title = canUpdates ? "" : "Нет права «Проверка и установка обновлений».";
   }
 }
 
@@ -766,6 +853,7 @@ function setupProfileHandlers() {
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
+    if (!requirePermission("edit_profile")) return;
     const currentUser = getCurrentUser();
     if (!currentUser) {
       status.textContent = "Сессия пользователя не найдена.";
@@ -820,7 +908,7 @@ function setupProfileHandlers() {
 
 function requirePermission(permission) {
   if (hasPermission(permission)) return true;
-  notifyUser("Недостаточно прав для этого действия.", "warning");
+  notifyUser(`Недостаточно прав. Нужно право «${PERMISSIONS[permission] || permission}».`, "warning");
   return false;
 }
 
@@ -1122,6 +1210,7 @@ function setupDatabaseSettingsHandlers() {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (!requirePermission("manage_database")) return;
     const { mode, localName, remote } = buildDatabaseConfigFromForm();
 
     if (mode === "remote" && (!remote.host || !remote.port || !remote.user || !remote.database)) {
@@ -1148,6 +1237,7 @@ function setupDatabaseSettingsHandlers() {
   });
 
   testConnectionButton.addEventListener("click", async () => {
+    if (!requirePermission("manage_database")) return;
     try {
       if (!window.teachAxoDb?.testMysqlConnection) {
         throw new Error("Сервис проверки подключения к БД недоступен.");
@@ -1170,6 +1260,7 @@ function setupDatabaseSettingsHandlers() {
   });
 
   migrateButton.addEventListener("click", async () => {
+    if (!requirePermission("manage_database")) return;
     try {
       if (!window.teachAxoDb?.migrateToMysql) {
         throw new Error("Сервис миграции БД недоступен.");
@@ -1200,6 +1291,7 @@ function setupAppAppearanceHandlers() {
   if (!form || !browseBtn || !pathInput || !status) return;
 
   browseBtn.addEventListener("click", async () => {
+    if (!requirePermission("manage_appearance")) return;
     try {
       const result = await window.teachAxo?.pickIcon?.();
       if (!result?.ok || result?.canceled) return;
@@ -1214,6 +1306,7 @@ function setupAppAppearanceHandlers() {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (!requirePermission("manage_appearance")) return;
     const iconPath = String(pathInput.value || "").trim();
     try {
       await window.teachAxo?.applyUiConfig?.({ iconPath });
@@ -1244,6 +1337,7 @@ function setupStatusBarHandlers() {
     renderStatusBar();
 
     const canPromptInstall =
+      hasPermission("manage_updates") &&
       state.runtimeUpdate.state === "downloaded" &&
       state.runtimeUpdate.availableVersion &&
       state.updatePromptedVersion !== state.runtimeUpdate.availableVersion;
@@ -1289,6 +1383,7 @@ function setupStatusBarHandlers() {
 
   if (dbNameButton) {
     dbNameButton.addEventListener("click", async () => {
+      if (!requirePermission("manage_database")) return;
       const isLocal = String(state.storageInfo.provider || "sqlite").toLowerCase() === "sqlite" || state.dbRuntimeStatus.mode === "local";
       if (!isLocal || !window.teachAxoDb?.openSqliteLocation) return;
       try {
@@ -1301,6 +1396,7 @@ function setupStatusBarHandlers() {
 
   if (checkButton) {
     checkButton.addEventListener("click", async () => {
+      if (!requirePermission("manage_updates")) return;
       if (!window.teachAxo?.checkUpdates) return;
       checkButton.disabled = true;
       try {
@@ -1320,6 +1416,7 @@ function setupStatusBarHandlers() {
 
   if (installButton) {
     installButton.addEventListener("click", async () => {
+      if (!requirePermission("manage_updates")) return;
       if (!window.teachAxo?.installUpdate) return;
       installButton.disabled = true;
       try {
@@ -1461,7 +1558,8 @@ function setupAuthHandlers() {
     authScreen.classList.add("hidden");
     appShell.classList.remove("hidden");
     renderAll();
-    activateSection("home", { silent: true });
+    const initial = getDefaultSection() ?? "home";
+    activateSection(initial, { silent: true });
   };
 
   document.getElementById("login-form").addEventListener("submit", (event) => {
@@ -1545,6 +1643,7 @@ async function init() {
   if (appVersionNode) appVersionNode.textContent = versionLabel;
   await loadState();
   seedAccessData();
+  syncAdministratorPermissions();
   state.students.forEach((student) => ensureClassExists(student.className));
   saveState();
   setupNav();
