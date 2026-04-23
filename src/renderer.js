@@ -1,4 +1,4 @@
-const STORAGE_KEY = "teachaxo_data_v2";
+const LEGACY_STORAGE_KEY = "teachaxo_data_v2";
 
 const PERMISSIONS = {
   manage_classes: "Управление классами",
@@ -136,21 +136,50 @@ function applyLoadedState(parsed) {
   state.currentUserId = parsed.currentUserId ?? null;
 }
 
+function readLegacyLocalStorageState() {
+  const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (_error) {
+    return null;
+  }
+}
+
 async function loadState() {
   try {
-    if (window.teachAxoDb?.getState) {
-      const dbState = await window.teachAxoDb.getState();
-      applyLoadedState(dbState);
-      const info = await window.teachAxoDb.getInfo();
-      if (info?.provider) state.storageInfo.provider = info.provider;
-      if (info?.sqlitePath) state.storageInfo.sqlitePath = info.sqlitePath;
-      return;
+    if (!window.teachAxoDb?.getState || !window.teachAxoDb?.saveState) {
+      throw new Error("SQLite API недоступен. Приложение должно работать только через SQLite.");
     }
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    applyLoadedState(JSON.parse(raw));
+
+    const dbState = await window.teachAxoDb.getState();
+    if (dbState) {
+      applyLoadedState(dbState);
+    } else {
+      // One-time migration for users who had data in old localStorage builds.
+      const legacyState = readLegacyLocalStorageState();
+      if (legacyState) {
+        applyLoadedState(legacyState);
+        await window.teachAxoDb.saveState({
+          classes: state.classes,
+          students: state.students,
+          grades: state.grades,
+          schedule: state.schedule,
+          scheduleSettings: state.scheduleSettings,
+          databaseConfig: state.databaseConfig,
+          roles: state.roles,
+          users: state.users,
+          currentUserId: state.currentUserId
+        });
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+      }
+    }
+
+    const info = await window.teachAxoDb.getInfo();
+    if (info?.provider) state.storageInfo.provider = info.provider;
+    if (info?.sqlitePath) state.storageInfo.sqlitePath = info.sqlitePath;
   } catch (error) {
-    console.error("Не удалось прочитать данные TeachAxo:", error);
+    console.error("Не удалось прочитать данные TeachAxo из SQLite:", error);
   }
 }
 
@@ -166,13 +195,13 @@ function saveState() {
     users: state.users,
     currentUserId: state.currentUserId
   };
-  if (window.teachAxoDb?.saveState) {
-    window.teachAxoDb.saveState(snapshot).catch((error) => {
-      console.error("Не удалось сохранить данные в SQLite:", error);
-    });
+  if (!window.teachAxoDb?.saveState) {
+    console.error("SQLite API недоступен. Сохранение отменено.");
     return;
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+  window.teachAxoDb.saveState(snapshot).catch((error) => {
+    console.error("Не удалось сохранить данные в SQLite:", error);
+  });
 }
 
 function seedAccessData() {
