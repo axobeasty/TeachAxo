@@ -12,7 +12,7 @@ const PERMISSIONS = {
   access_settings: "Раздел «Настройки»",
   view_app_info: "Сведения о версии и журнал изменений",
   manage_database: "Настройка базы данных и миграция",
-  manage_appearance: "Внешний вид приложения (иконка)",
+  manage_appearance: "Внешний вид приложения (тема и иконка)",
   manage_updates: "Проверка и установка обновлений"
 };
 
@@ -79,14 +79,66 @@ const state = {
   },
   updatePromptedVersion: null,
   uiConfig: {
-    iconPath: ""
+    iconPath: "",
+    theme: "system"
   },
   searchQuery: "",
   classSearchQuery: ""
 };
 
+const THEME_PREFS = ["light", "dark", "system"];
+
+function normalizeThemePreference(value) {
+  const v = String(value || "").toLowerCase();
+  return THEME_PREFS.includes(v) ? v : "system";
+}
+
+function resolveDisplayTheme(preference) {
+  if (normalizeThemePreference(preference) === "system") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  return normalizeThemePreference(preference) === "dark" ? "dark" : "light";
+}
+
+function applyDisplayTheme(display) {
+  document.documentElement.setAttribute("data-theme", display);
+}
+
+function syncThemeFromPreference(preference) {
+  applyDisplayTheme(resolveDisplayTheme(preference));
+}
+
+let themeColorSchemeListener = null;
+
+function bindSystemThemeListener() {
+  if (themeColorSchemeListener) {
+    themeColorSchemeListener.mq.removeEventListener("change", themeColorSchemeListener.fn);
+    themeColorSchemeListener = null;
+  }
+  if (normalizeThemePreference(state.uiConfig.theme) !== "system") return;
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  const fn = () => syncThemeFromPreference(state.uiConfig.theme);
+  mq.addEventListener("change", fn);
+  themeColorSchemeListener = { mq, fn };
+}
+
+function setUserThemePreference(pref) {
+  state.uiConfig.theme = normalizeThemePreference(pref);
+  syncThemeFromPreference(state.uiConfig.theme);
+  bindSystemThemeListener();
+}
+
 const dayOrder = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 const VERSION_CHANGELOG = {
+  "1.0.34": {
+    added: [
+      "История изменений по версиям в настройках: каждая версия в сворачиваемом блоке (спойлер)."
+    ],
+    changed: [
+      "Вёрстка раздела настроек: перенос длинных строк, путей к БД и поля выбора иконки без выхода за границы."
+    ],
+    removed: []
+  },
   "1.0.22": {
     added: [
       "Гибкий changelog в настройках: категории Добавлено/Изменено/Убрано и история по версиям."
@@ -688,18 +740,33 @@ function renderSettingsPage() {
   document.getElementById("current-version-removed").innerHTML = renderCategory(currentChangeEntry.removed);
 
   const sortedVersions = Object.keys(VERSION_CHANGELOG).sort(compareSemverDesc);
+  const expandedHistoryVersionKey = VERSION_CHANGELOG[currentVersionKey]
+    ? currentVersionKey
+    : sortedVersions[0];
+  const renderHistorySection = (title, items) => {
+    if (!items.length) return "";
+    const lis = items.map((t) => `<li>${escapeHtml(t)}</li>`).join("");
+    return `<div class="changelog-history-block">
+      <div class="changelog-history-title">${escapeHtml(title)}</div>
+      <ul class="changelog-history-list">${lis}</ul>
+    </div>`;
+  };
   document.getElementById("version-history-log").innerHTML = sortedVersions
     .map((version) => {
       const entry = VERSION_CHANGELOG[version];
-      const added = entry.added.length ? `<li><strong>Добавлено:</strong> ${escapeHtml(entry.added.join("; "))}</li>` : "";
-      const changed = entry.changed.length ? `<li><strong>Изменено:</strong> ${escapeHtml(entry.changed.join("; "))}</li>` : "";
-      const removed = entry.removed.length ? `<li><strong>Убрано:</strong> ${escapeHtml(entry.removed.join("; "))}</li>` : "";
-      return `<div class="item">
-        <div class="content">
-          <div class="header">Версия ${escapeHtml(version)}</div>
-          <ul class="ui list">${added}${changed}${removed}</ul>
-        </div>
-      </div>`;
+      const blocks = [
+        renderHistorySection("Добавлено", entry.added),
+        renderHistorySection("Изменено", entry.changed),
+        renderHistorySection("Убрано", entry.removed),
+      ]
+        .filter(Boolean)
+        .join("");
+      const body = blocks || '<p class="changelog-history-empty">Нет записей.</p>';
+      const openAttr = version === expandedHistoryVersionKey ? " open" : "";
+      return `<details class="settings-changelog-version"${openAttr}>
+        <summary class="settings-changelog-summary">Версия ${escapeHtml(version)}</summary>
+        <div class="settings-changelog-body">${body}</div>
+      </details>`;
     })
     .join("");
 
@@ -712,6 +779,8 @@ function renderSettingsPage() {
   document.getElementById("database-remote-name").value = state.databaseConfig.remote.database;
   const iconPathInput = document.getElementById("app-icon-path");
   if (iconPathInput) iconPathInput.value = state.uiConfig.iconPath || "";
+  const themeSelect = document.getElementById("theme-mode-select");
+  if (themeSelect) themeSelect.value = normalizeThemePreference(state.uiConfig.theme);
 
   const isRemote = state.databaseConfig.mode === "remote";
   document.getElementById("database-local-fields").classList.toggle("hidden", isRemote);
@@ -1385,6 +1454,25 @@ function setupDatabaseSettingsHandlers() {
 }
 
 function setupAppAppearanceHandlers() {
+  const themeSelect = document.getElementById("theme-mode-select");
+  if (themeSelect) {
+    themeSelect.addEventListener("change", async () => {
+      if (!hasPermission("manage_appearance")) {
+        themeSelect.value = normalizeThemePreference(state.uiConfig.theme);
+        notifyUser(`Недостаточно прав. Нужно право «${PERMISSIONS.manage_appearance}».`, "warning");
+        return;
+      }
+      const theme = normalizeThemePreference(themeSelect.value);
+      setUserThemePreference(theme);
+      try {
+        await window.teachAxo?.applyUiConfig?.({ iconPath: state.uiConfig.iconPath, theme });
+        notifyUser("Тема оформления сохранена.", "success");
+      } catch (error) {
+        notifyUser(`Не удалось сохранить тему: ${error.message}`, "error");
+      }
+    });
+  }
+
   const form = document.getElementById("app-appearance-form");
   const browseBtn = document.getElementById("app-icon-browse");
   const pathInput = document.getElementById("app-icon-path");
@@ -1410,7 +1498,7 @@ function setupAppAppearanceHandlers() {
     if (!requirePermission("manage_appearance")) return;
     const iconPath = String(pathInput.value || "").trim();
     try {
-      await window.teachAxo?.applyUiConfig?.({ iconPath });
+      await window.teachAxo?.applyUiConfig?.({ iconPath, theme: state.uiConfig.theme });
       state.uiConfig.iconPath = iconPath;
       status.textContent = "Иконка приложения обновлена.";
       status.className = "ui tiny positive message";
@@ -1735,9 +1823,14 @@ async function init() {
     const uiConfig = await window.teachAxo?.getUiConfig?.();
     if (uiConfig && typeof uiConfig === "object") {
       state.uiConfig.iconPath = String(uiConfig.iconPath || "");
+      state.uiConfig.theme = normalizeThemePreference(uiConfig.theme);
     }
+    syncThemeFromPreference(state.uiConfig.theme);
+    bindSystemThemeListener();
   } catch (error) {
     console.warn("Не удалось получить UI-конфиг:", error);
+    syncThemeFromPreference(state.uiConfig.theme);
+    bindSystemThemeListener();
   }
   const versionLabel = getVersionLabel();
   const appVersionNode = document.getElementById("app-version");

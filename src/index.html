@@ -510,7 +510,7 @@
                             <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="access_settings" /><label>Раздел «Настройки»</label></div></div>
                             <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="view_app_info" /><label>Сведения о версии и журнал изменений</label></div></div>
                             <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_database" /><label>Настройка базы данных и миграция</label></div></div>
-                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_appearance" /><label>Внешний вид приложения (иконка)</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_appearance" /><label>Внешний вид (тема и иконка)</label></div></div>
                             <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_updates" /><label>Проверка и установка обновлений</label></div></div>
                           </div>
                         </fieldset>
@@ -742,6 +742,19 @@
 
               <div class="ui segment settings-card" id="settings-appearance-segment">
                 <h3 class="ui header">Внешний вид</h3>
+                <div class="ui form settings-form-block">
+                  <div class="field">
+                    <label>Тема оформления</label>
+                    <select id="theme-mode-select">
+                      <option value="light">Светлая</option>
+                      <option value="dark">Тёмная</option>
+                      <option value="system">Как в системе</option>
+                    </select>
+                  </div>
+                  <p class="settings-theme-hint">
+                    Сохраняется локально в профиле приложения. «Как в системе» следует настройке Windows (светлая / тёмная).
+                  </p>
+                </div>
                 <form id="app-appearance-form" class="ui form settings-form-block">
                   <div class="field">
                     <label>Иконка приложения (окно)</label>
@@ -760,7 +773,7 @@
               <div id="settings-changelog-blocks">
               <div class="ui segment settings-card">
                 <h3 class="ui header">Что нового в текущей версии</h3>
-                <div class="ui stackable three column grid">
+                <div class="ui stackable three column grid settings-changelog-current-grid">
                   <div class="column">
                     <h4 class="ui small header">Добавлено</h4>
                     <ul id="current-version-added" class="ui list"></ul>
@@ -778,7 +791,7 @@
 
               <div class="ui segment settings-card">
                 <h3 class="ui header">Лог изменений по версиям</h3>
-                <div id="version-history-log" class="ui relaxed divided list"></div>
+                <div id="version-history-log" class="settings-version-history"></div>
               </div>
               </div>
             </div>

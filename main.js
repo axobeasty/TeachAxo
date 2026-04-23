@@ -36,8 +36,15 @@ let cachedDbStatus = {
   sqliteFileName: "teachaxo.sqlite"
 };
 let appUiConfig = {
-  iconPath: ""
+  iconPath: "",
+  theme: "system"
 };
+
+function normalizeUiTheme(value) {
+  const v = String(value || "").toLowerCase();
+  if (v === "light" || v === "dark" || v === "system") return v;
+  return "system";
+}
 
 function getDbRuntimeConfigPath(userDataPath) {
   return path.join(userDataPath, DB_RUNTIME_CONFIG_FILE);
@@ -77,21 +84,23 @@ function getUiConfigPath(userDataPath) {
 
 function loadUiConfig(userDataPath) {
   const configPath = getUiConfigPath(userDataPath);
-  if (!fs.existsSync(configPath)) return { iconPath: "" };
+  if (!fs.existsSync(configPath)) return { iconPath: "", theme: "system" };
   try {
     const parsed = JSON.parse(fs.readFileSync(configPath, "utf-8"));
     return {
-      iconPath: String(parsed?.iconPath || "")
+      iconPath: String(parsed?.iconPath || ""),
+      theme: normalizeUiTheme(parsed?.theme)
     };
   } catch (_error) {
-    return { iconPath: "" };
+    return { iconPath: "", theme: "system" };
   }
 }
 
 function saveUiConfig(userDataPath, config) {
   const configPath = getUiConfigPath(userDataPath);
   const safeConfig = {
-    iconPath: String(config?.iconPath || "")
+    iconPath: String(config?.iconPath || ""),
+    theme: normalizeUiTheme(config?.theme)
   };
   fs.writeFileSync(configPath, JSON.stringify(safeConfig, null, 2), "utf-8");
 }
@@ -811,7 +820,14 @@ function registerDatabaseIpcHandlers() {
   });
   ipcMain.handle("app:apply-ui-config", async (_event, config) => {
     const nextConfig = {
-      iconPath: String(config?.iconPath || "")
+      iconPath:
+        config && Object.prototype.hasOwnProperty.call(config, "iconPath")
+          ? String(config.iconPath || "")
+          : String(appUiConfig.iconPath || ""),
+      theme:
+        config && Object.prototype.hasOwnProperty.call(config, "theme")
+          ? normalizeUiTheme(config.theme)
+          : normalizeUiTheme(appUiConfig.theme)
     };
     appUiConfig = nextConfig;
     saveUiConfig(app.getPath("userData"), nextConfig);
