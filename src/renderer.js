@@ -83,7 +83,10 @@ const state = {
     theme: "system"
   },
   searchQuery: "",
-  classSearchQuery: ""
+  classSearchQuery: "",
+  gradesJournalClass: "",
+  gradesJournalSubject: "",
+  gradesJournalExtraDates: []
 };
 
 const THEME_PREFS = ["light", "dark", "system"];
@@ -130,6 +133,13 @@ function setUserThemePreference(pref) {
 
 const dayOrder = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 const VERSION_CHANGELOG = {
+  "1.0.38": {
+    added: [
+      "Журнал оценок: одна таблица «учащиеся × даты уроков», добавление столбцов дат, контекстное меню в ячейке (1–5, Н, Б, очистить)."
+    ],
+    changed: [],
+    removed: []
+  },
   "1.0.37": {
     added: [],
     changed: [
@@ -264,6 +274,95 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function getJournalClassOptions() {
+  const fromClasses = state.classes.map((c) => c.name).filter(Boolean);
+  const fromStudents = [...new Set(state.students.map((s) => s.className).filter(Boolean))];
+  return [...new Set([...fromClasses, ...fromStudents])].sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+function getSubjectOptionsForClass(className) {
+  if (!className) return [];
+  const subs = [
+    ...new Set(
+      state.students
+        .filter((s) => s.className === className)
+        .map((s) => (s.subject || "").trim())
+        .filter(Boolean)
+    )
+  ];
+  return subs.sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+function getStudentsForJournal(className, subjectFilter) {
+  const subj = (subjectFilter || "").trim().toLowerCase();
+  return state.students
+    .filter(
+      (s) => s.className === className && (!subj || (s.subject || "").trim().toLowerCase() === subj)
+    )
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+}
+
+function collectJournalDates(studentIds) {
+  const idSet = new Set(studentIds);
+  const fromGrades = state.grades.filter((g) => idSet.has(g.studentId)).map((g) => g.date);
+  const extra = Array.isArray(state.gradesJournalExtraDates) ? state.gradesJournalExtraDates : [];
+  return [...new Set([...fromGrades, ...extra].filter(Boolean))].sort();
+}
+
+function formatGradeDateHeader(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+  if (!m) return String(iso || "");
+  return `${m[3]}.${m[2]}.${m[1]}`;
+}
+
+function findGradeForCell(studentId, date) {
+  const matches = state.grades.filter((g) => g.studentId === studentId && g.date === date);
+  if (!matches.length) return null;
+  return matches[matches.length - 1];
+}
+
+function setGradeCell(studentId, date, value) {
+  state.grades = state.grades.filter((g) => !(g.studentId === studentId && g.date === date));
+  const trimmed = value === null || value === undefined ? "" : String(value).trim();
+  if (trimmed) {
+    state.grades.push({ id: uid(), studentId, value: trimmed, date, comment: "" });
+  }
+  saveState();
+  renderGradesJournal();
+}
+
+let gradesContextTarget = null;
+
+function hideGradesContextMenu() {
+  const menu = document.getElementById("grades-context-menu");
+  if (menu) {
+    menu.classList.add("hidden");
+    menu.setAttribute("aria-hidden", "true");
+  }
+  gradesContextTarget = null;
+}
+
+function showGradesContextMenu(clientX, clientY) {
+  const menu = document.getElementById("grades-context-menu");
+  if (!menu) return;
+  menu.classList.remove("hidden");
+  menu.setAttribute("aria-hidden", "false");
+  menu.style.left = `${clientX}px`;
+  menu.style.top = `${clientY}px`;
+  const pad = 8;
+  requestAnimationFrame(() => {
+    const rect = menu.getBoundingClientRect();
+    let x = clientX;
+    let y = clientY;
+    if (x + rect.width > window.innerWidth - pad) x = Math.max(pad, window.innerWidth - rect.width - pad);
+    if (y + rect.height > window.innerHeight - pad) y = Math.max(pad, window.innerHeight - rect.height - pad);
+    if (x < pad) x = pad;
+    if (y < pad) y = pad;
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+  });
+}
+
 function notifyUser(message, type = "info") {
   const titleByType = {
     info: "TeachAxo",
@@ -363,6 +462,11 @@ function applyLoadedState(parsed) {
     rememberSession: hasAuthSettings ? Boolean(parsed.auth?.rememberSession) : Boolean(parsed.currentUserId),
     rememberedUserId: hasAuthSettings ? parsed.auth?.rememberedUserId ?? null : parsed.currentUserId ?? null
   };
+  state.gradesJournalClass = typeof parsed.gradesJournalClass === "string" ? parsed.gradesJournalClass : "";
+  state.gradesJournalSubject = typeof parsed.gradesJournalSubject === "string" ? parsed.gradesJournalSubject : "";
+  state.gradesJournalExtraDates = Array.isArray(parsed.gradesJournalExtraDates)
+    ? parsed.gradesJournalExtraDates.filter((d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
+    : [];
 }
 
 async function loadState() {
@@ -395,7 +499,10 @@ function saveState() {
     roles: state.roles,
     users: state.users,
     currentUserId: state.currentUserId,
-    auth: state.auth
+    auth: state.auth,
+    gradesJournalClass: state.gradesJournalClass,
+    gradesJournalSubject: state.gradesJournalSubject,
+    gradesJournalExtraDates: state.gradesJournalExtraDates
   };
   if (!window.teachAxoDb?.saveState) {
     console.error("SQLite API недоступен. Сохранение отменено.");
@@ -586,27 +693,95 @@ function renderStudents() {
     .join("");
 }
 
-function renderGradeStudentsDropdown() {
-  document.getElementById("grade-student").innerHTML = [
-    `<option value="">Выберите ученика</option>`,
-    ...state.students.map(
-      (student) => `<option value="${student.id}">${escapeHtml(student.name)} (${escapeHtml(student.className)})</option>`
-    )
+function renderGradesJournalToolbar() {
+  const classSelect = document.getElementById("grades-journal-class");
+  const subjectSelect = document.getElementById("grades-journal-subject");
+  if (!classSelect || !subjectSelect) return;
+
+  const classes = getJournalClassOptions();
+  let currentClass = state.gradesJournalClass;
+  if (!currentClass || !classes.includes(currentClass)) {
+    currentClass = classes[0] || "";
+  }
+  state.gradesJournalClass = currentClass;
+
+  classSelect.innerHTML = classes.length
+    ? classes.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")
+    : `<option value="">— Нет классов —</option>`;
+  classSelect.value = currentClass;
+
+  const subjects = currentClass ? getSubjectOptionsForClass(currentClass) : [];
+  let currentSubj = state.gradesJournalSubject || "";
+  if (currentSubj && !subjects.includes(currentSubj)) {
+    currentSubj = "";
+  }
+  state.gradesJournalSubject = currentSubj;
+
+  subjectSelect.innerHTML = [
+    `<option value="">Все предметы</option>`,
+    ...subjects.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`)
   ].join("");
+  subjectSelect.value = currentSubj;
 }
 
-function renderGrades() {
-  const tbody = document.getElementById("grades-table-body");
-  const sorted = [...state.grades].sort((a, b) => b.date.localeCompare(a.date));
-  tbody.innerHTML = sorted
-    .map((grade) => {
-      const student = state.students.find((s) => s.id === grade.studentId);
+function renderGradesJournal() {
+  const thead = document.getElementById("grades-matrix-head");
+  const tbody = document.getElementById("grades-matrix-body");
+  if (!thead || !tbody) return;
+
+  hideGradesContextMenu();
+  renderGradesJournalToolbar();
+
+  const className = state.gradesJournalClass;
+  const students = className ? getStudentsForJournal(className, state.gradesJournalSubject) : [];
+  const studentIds = students.map((s) => s.id);
+  const dates = className && studentIds.length ? collectJournalDates(studentIds) : className ? collectJournalDates([]) : [];
+
+  if (!className || !students.length) {
+    thead.innerHTML = "";
+    tbody.innerHTML = `<tr><td colspan="1" class="grades-journal-empty">${
+      !className
+        ? "Добавьте классы и учеников, затем выберите класс."
+        : "В этом классе нет учеников (с учётом фильтра по предмету)."
+    }</td></tr>`;
+    return;
+  }
+
+  if (!dates.length) {
+    thead.innerHTML = `<tr><th class="grades-matrix-corner">Учащийся</th></tr>`;
+    tbody.innerHTML = students
+      .map((student) => `<tr><td class="grades-matrix-name">${escapeHtml(student.name)}</td></tr>`)
+      .join("");
+    return;
+  }
+
+  const headCells = [
+    `<th class="grades-matrix-corner">Учащийся</th>`,
+    ...dates.map(
+      (d) =>
+        `<th scope="col" title="${escapeHtml(d)}"><span class="grades-matrix-date-label">${escapeHtml(
+          formatGradeDateHeader(d)
+        )}</span></th>`
+    )
+  ];
+  thead.innerHTML = `<tr>${headCells.join("")}</tr>`;
+
+  tbody.innerHTML = students
+    .map((student) => {
+      const cells = dates
+        .map((date) => {
+          const g = findGradeForCell(student.id, date);
+          const val = g ? g.value : "";
+          const display = val === "" ? "·" : escapeHtml(val);
+          const emptyClass = val === "" ? " grades-matrix-empty" : "";
+          return `<td class="grades-matrix-cell${emptyClass}" data-student-id="${escapeHtml(
+            student.id
+          )}" data-lesson-date="${escapeHtml(date)}">${display}</td>`;
+        })
+        .join("");
       return `<tr>
-        <td>${escapeHtml(grade.date)}</td>
-        <td>${escapeHtml(student?.name || "Удаленный ученик")}</td>
-        <td>${escapeHtml(student?.className || "-")}</td>
-        <td><strong>${escapeHtml(grade.value)}</strong></td>
-        <td>${escapeHtml(grade.comment || "-")}</td>
+        <td class="grades-matrix-name">${escapeHtml(student.name)}</td>
+        ${cells}
       </tr>`;
     })
     .join("");
@@ -987,8 +1162,7 @@ function renderAll() {
   renderClasses();
   renderClassesDatalist();
   renderStudents();
-  renderGradeStudentsDropdown();
-  renderGrades();
+  renderGradesJournal();
   renderSchedule();
   renderHomeSchedule();
   renderHomeDashboard();
@@ -1136,22 +1310,80 @@ function setupStudentHandlers() {
 }
 
 function setupGradesHandlers() {
-  const form = document.getElementById("grade-form");
-  const dateInput = document.getElementById("grade-date");
-  dateInput.valueAsDate = new Date();
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (!requirePermission("manage_grades")) return;
-    const studentId = document.getElementById("grade-student").value;
-    const value = document.getElementById("grade-value").value;
-    const date = document.getElementById("grade-date").value;
-    const comment = document.getElementById("grade-comment").value.trim();
-    if (!studentId || !value || !date) return;
-    state.grades.push({ id: uid(), studentId, value, date, comment });
-    form.reset();
-    dateInput.valueAsDate = new Date();
-    saveState();
-    renderGrades();
+  const classSelect = document.getElementById("grades-journal-class");
+  const subjectSelect = document.getElementById("grades-journal-subject");
+  const addDateBtn = document.getElementById("grades-journal-add-date-btn");
+  const newDateInput = document.getElementById("grades-journal-new-date");
+  const matrixWrap = document.getElementById("grades-journal-matrix-wrap");
+  const menu = document.getElementById("grades-context-menu");
+
+  if (classSelect) {
+    classSelect.addEventListener("change", () => {
+      state.gradesJournalClass = classSelect.value;
+      state.gradesJournalSubject = "";
+      saveState();
+      renderGradesJournal();
+    });
+  }
+
+  if (subjectSelect) {
+    subjectSelect.addEventListener("change", () => {
+      state.gradesJournalSubject = subjectSelect.value;
+      saveState();
+      renderGradesJournal();
+    });
+  }
+
+  if (addDateBtn && newDateInput) {
+    addDateBtn.addEventListener("click", () => {
+      if (!requirePermission("manage_grades")) return;
+      const d = newDateInput.value;
+      if (!d) {
+        notifyUser("Выберите дату урока.", "warning");
+        return;
+      }
+      if (!state.gradesJournalExtraDates.includes(d)) {
+        state.gradesJournalExtraDates = [...state.gradesJournalExtraDates, d].sort();
+        saveState();
+      }
+      renderGradesJournal();
+    });
+  }
+
+  if (matrixWrap) {
+    matrixWrap.addEventListener("contextmenu", (e) => {
+      const cell = e.target.closest("td.grades-matrix-cell");
+      if (!cell) return;
+      if (!hasPermission("manage_grades")) return;
+      e.preventDefault();
+      const studentId = cell.dataset.studentId;
+      const lessonDate = cell.dataset.lessonDate;
+      if (!studentId || !lessonDate) return;
+      gradesContextTarget = { studentId, lessonDate };
+      showGradesContextMenu(e.clientX, e.clientY);
+    });
+    matrixWrap.addEventListener("scroll", () => hideGradesContextMenu());
+  }
+
+  if (menu) {
+    menu.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-grade-pick]");
+      if (!btn || !gradesContextTarget) return;
+      e.preventDefault();
+      const raw = btn.getAttribute("data-grade-pick");
+      const value = raw === "" || raw === null ? "" : raw;
+      const { studentId, lessonDate } = gradesContextTarget;
+      setGradeCell(studentId, lessonDate, value);
+    });
+  }
+
+  document.addEventListener("click", (e) => {
+    if (!menu || menu.classList.contains("hidden")) return;
+    if (menu.contains(e.target)) return;
+    hideGradesContextMenu();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideGradesContextMenu();
   });
 }
 

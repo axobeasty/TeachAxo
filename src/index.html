@@ -296,58 +296,53 @@
           </section>
 
           <section class="section page-card" data-section-panel="grades">
-            <div class="grades-page">
-              <div class="grades-layout">
-                <div class="grades-panel">
-                  <h3 class="ui header">Поставить оценку</h3>
-                  <form id="grade-form" class="ui form">
-                    <div class="field">
-                      <label>Ученик</label>
-                      <select id="grade-student" class="ui dropdown" required></select>
-                    </div>
-                    <div class="two fields grades-form-row">
-                      <div class="field">
-                        <label>Оценка</label>
-                        <select id="grade-value" required>
-                          <option value="">Выберите</option>
-                          <option value="5">5</option>
-                          <option value="4">4</option>
-                          <option value="3">3</option>
-                          <option value="2">2</option>
-                          <option value="1">1</option>
-                        </select>
-                      </div>
-                      <div class="field">
-                        <label>Дата</label>
-                        <input type="date" id="grade-date" required />
-                      </div>
-                    </div>
-                    <div class="field">
-                      <label>Тема/комментарий</label>
-                      <input type="text" id="grade-comment" placeholder="Контрольная работа, домашнее задание..." />
-                    </div>
-                    <button class="ui primary button" type="submit">Сохранить оценку</button>
-                  </form>
-                </div>
-                <div class="grades-main">
-                  <div class="ui segment">
-                    <h3 class="ui header">Журнал оценок</h3>
-                    <div class="grades-table-wrap">
-                      <table class="ui celled table grades-data-table">
-                        <thead>
-                          <tr>
-                            <th>Дата</th>
-                            <th>Ученик</th>
-                            <th>Класс</th>
-                            <th>Оценка</th>
-                            <th>Комментарий</th>
-                          </tr>
-                        </thead>
-                        <tbody id="grades-table-body"></tbody>
-                      </table>
+            <div class="grades-page grades-journal-page">
+              <div class="grades-journal-head">
+                <h2 class="ui header">Журнал оценок</h2>
+                <p class="grades-journal-hint">
+                  Строки — учащиеся выбранного класса, столбцы — даты уроков. Правый клик по ячейке: оценка 1–5, «Н» (не был), «Б»
+                  (болел) или очистить.
+                </p>
+              </div>
+              <div class="grades-journal-toolbar">
+                <div class="grades-journal-filters">
+                  <div class="field">
+                    <label for="grades-journal-class">Класс</label>
+                    <select id="grades-journal-class"></select>
+                  </div>
+                  <div class="field">
+                    <label for="grades-journal-subject">Предмет</label>
+                    <select id="grades-journal-subject">
+                      <option value="">Все предметы</option>
+                    </select>
+                  </div>
+                  <div class="field grades-journal-add-date-field">
+                    <label for="grades-journal-new-date">Дата урока (новый столбец)</label>
+                    <div class="grades-journal-date-row">
+                      <input type="date" id="grades-journal-new-date" />
+                      <button type="button" class="ui button" id="grades-journal-add-date-btn">Добавить столбец</button>
                     </div>
                   </div>
                 </div>
+              </div>
+              <div class="grades-journal-matrix-outer">
+                <div class="grades-journal-matrix-wrap" id="grades-journal-matrix-wrap">
+                  <table class="ui celled table compact grades-matrix-table" id="grades-matrix-table">
+                    <thead id="grades-matrix-head"></thead>
+                    <tbody id="grades-matrix-body"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div id="grades-context-menu" class="grades-context-menu hidden" role="menu" aria-hidden="true">
+                <button type="button" class="grades-context-item" data-grade-pick="5">5</button>
+                <button type="button" class="grades-context-item" data-grade-pick="4">4</button>
+                <button type="button" class="grades-context-item" data-grade-pick="3">3</button>
+                <button type="button" class="grades-context-item" data-grade-pick="2">2</button>
+                <button type="button" class="grades-context-item" data-grade-pick="1">1</button>
+                <button type="button" class="grades-context-item" data-grade-pick="Н">Н (не был)</button>
+                <button type="button" class="grades-context-item" data-grade-pick="Б">Б (болел)</button>
+                <div class="grades-context-sep"></div>
+                <button type="button" class="grades-context-item grades-context-clear" data-grade-pick="">Очистить</button>
               </div>
             </div>
           </section>

@@ -312,8 +312,7 @@ body {
   min-width: 0;
 }
 
-.students-layout,
-.grades-layout {
+.students-layout {
   display: grid;
   grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
   gap: 14px;
@@ -321,31 +320,26 @@ body {
   min-width: 0;
 }
 
-.students-panel,
-.grades-panel {
+.students-panel {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.students-panel > .ui.header:first-child,
-.grades-panel > .ui.header:first-child {
+.students-panel > .ui.header:first-child {
   margin: 0 !important;
 }
 
-.students-panel .ui.form,
-.grades-panel .ui.form {
+.students-panel .ui.form {
   min-width: 0;
 }
 
-.students-main,
-.grades-main {
+.students-main {
   min-width: 0;
 }
 
-.students-main > .ui.segment,
-.grades-main > .ui.segment {
+.students-main > .ui.segment {
   margin: 0 !important;
   min-width: 0;
   display: flex;
@@ -353,8 +347,7 @@ body {
   gap: 12px;
 }
 
-.students-main > .ui.segment > .ui.header,
-.grades-main > .ui.segment > .ui.header {
+.students-main > .ui.segment > .ui.header {
   margin: 0 !important;
 }
 
@@ -382,14 +375,12 @@ body {
   min-width: 0;
 }
 
-.students-search-wrap,
-.grades-main .ui.fluid.icon.input {
+.students-search-wrap {
   width: 100%;
   min-width: 0;
 }
 
-.students-table-wrap,
-.grades-table-wrap {
+.students-table-wrap {
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
@@ -399,23 +390,19 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-.students-table-wrap .ui.table,
-.grades-table-wrap .ui.table {
+.students-table-wrap .ui.table {
   margin: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
   min-width: 680px;
 }
 
-.students-data-table,
-.grades-data-table {
+.students-data-table {
   table-layout: fixed;
 }
 
 .students-data-table thead th,
-.students-data-table tbody td,
-.grades-data-table thead th,
-.grades-data-table tbody td {
+.students-data-table tbody td {
   word-break: break-word;
   overflow-wrap: anywhere;
   vertical-align: top !important;
@@ -454,42 +441,200 @@ body {
   box-sizing: border-box;
 }
 
-.grades-data-table thead th:nth-child(1),
-.grades-data-table tbody td:nth-child(1) {
-  width: 112px;
+/* Grades journal (matrix) */
+.grades-journal-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
 }
 
-.grades-data-table thead th:nth-child(2),
-.grades-data-table tbody td:nth-child(2) {
-  width: 22%;
+.grades-journal-head .ui.header {
+  margin: 0 0 6px !important;
 }
 
-.grades-data-table thead th:nth-child(3),
-.grades-data-table tbody td:nth-child(3) {
-  width: 12%;
+.grades-journal-hint {
+  margin: 0;
+  max-width: 72ch;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
 }
 
-.grades-data-table thead th:nth-child(4),
-.grades-data-table tbody td:nth-child(4) {
-  width: 64px;
-  text-align: center;
+.grades-journal-toolbar {
+  min-width: 0;
 }
 
-.grades-panel .grades-form-row.two.fields {
+.grades-journal-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 12px;
+  align-items: flex-end;
+  gap: 12px 20px;
 }
 
-.grades-panel .grades-form-row.two.fields > .field {
-  flex: 1 1 140px;
+.grades-journal-filters .field {
+  margin: 0 !important;
   min-width: 0;
-  margin-bottom: 0.85em !important;
+}
+
+.grades-journal-filters .field > label {
+  display: block;
+  margin-bottom: 6px !important;
+}
+
+.grades-journal-filters select {
+  min-width: 160px;
+  max-width: 100%;
+}
+
+.grades-journal-date-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.grades-journal-date-row input[type="date"] {
+  min-width: 140px;
+}
+
+.grades-journal-matrix-outer {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.grades-journal-matrix-wrap {
+  max-height: min(70vh, 640px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.grades-matrix-table {
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  table-layout: fixed;
+  min-width: max-content;
+}
+
+.grades-matrix-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--table-head-bg) !important;
+  color: var(--table-head-fg) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  white-space: nowrap;
+  padding: 8px 6px !important;
+  min-width: 4.5rem;
+}
+
+.grades-matrix-table thead th.grades-matrix-corner {
+  left: 0;
+  z-index: 3;
+  text-align: left !important;
+  min-width: 10rem;
+  max-width: 14rem;
+  width: 12rem;
+  white-space: normal;
+}
+
+.grades-matrix-table tbody td {
+  font-size: 13px;
+  padding: 6px 8px !important;
+  vertical-align: middle !important;
+}
+
+.grades-matrix-table tbody td.grades-matrix-name {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface) !important;
+  font-weight: 600;
+  box-shadow: 1px 0 0 var(--line);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-width: 14rem;
+}
+
+.grades-matrix-table tbody td.grades-matrix-cell {
+  text-align: center;
+  cursor: context-menu;
+  min-width: 3rem;
+  user-select: none;
+}
+
+.grades-matrix-table tbody td.grades-matrix-cell.grades-matrix-empty {
+  color: var(--fg-disabled);
+}
+
+.grades-matrix-table tbody tr:nth-child(even) td.grades-matrix-name {
+  background: var(--elevated) !important;
+}
+
+.grades-matrix-table tbody tr:nth-child(even) td.grades-matrix-cell {
+  background: var(--surface-2);
+}
+
+.grades-journal-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.grades-context-menu {
+  position: fixed;
+  z-index: 10050;
+  min-width: 168px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+}
+
+.grades-context-menu.hidden {
+  display: none !important;
+}
+
+.grades-context-item {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.grades-context-item:hover {
+  background: var(--surface-2);
+}
+
+.grades-context-clear {
+  color: var(--muted);
+}
+
+.grades-context-sep {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--line);
 }
 
 @media (max-width: 1100px) {
-  .students-layout,
-  .grades-layout {
+  .students-layout {
     grid-template-columns: 1fr;
   }
 }
