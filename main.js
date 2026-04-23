@@ -5,7 +5,7 @@ const https = require("node:https");
 const { spawn } = require("node:child_process");
 const { autoUpdater } = require("electron-updater");
 const AdmZip = require("adm-zip");
-const { DatabaseService } = require("./database");
+const { DatabaseService } = require("./src/database");
 
 let mainWindow = null;
 let updaterWindow = null;
