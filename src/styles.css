@@ -380,65 +380,169 @@ body {
   min-width: 0;
 }
 
-.students-table-wrap {
-  min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  border-radius: 10px;
+.student-class-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.student-class-chip {
   border: 1px solid var(--line);
+  border-radius: 999px;
   background: var(--surface);
-  -webkit-overflow-scrolling: touch;
-}
-
-.students-table-wrap .ui.table {
-  margin: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  min-width: 680px;
-}
-
-.students-data-table {
-  table-layout: fixed;
-}
-
-.students-data-table thead th,
-.students-data-table tbody td {
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  vertical-align: top !important;
+  color: var(--text);
+  padding: 6px 12px;
   font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.students-data-table thead th:nth-child(1),
-.students-data-table tbody td:nth-child(1) {
-  width: 28%;
+.student-class-chip:hover {
+  background: var(--quick-hover-bg);
 }
 
-.students-data-table thead th:nth-child(2),
-.students-data-table tbody td:nth-child(2) {
-  width: 12%;
+.student-class-chip.active {
+  border-color: var(--primary);
+  background: var(--nav-active-bg);
+  color: var(--nav-active-fg);
 }
 
-.students-data-table thead th:nth-child(3),
-.students-data-table tbody td:nth-child(3) {
-  width: 16%;
+.student-class-toggle-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
 }
 
-.students-data-table thead th:nth-child(4),
-.students-data-table tbody td:nth-child(4) {
-  width: 26%;
+.students-class-groups {
+  display: grid;
+  gap: 10px;
 }
 
-.students-data-table thead th:nth-child(5),
-.students-data-table tbody td:nth-child(5) {
-  width: 120px;
+.students-empty-hint {
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  background: var(--elevated);
 }
 
-.students-data-table .ui.mini.button {
-  margin: 0 !important;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
+.students-class-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.students-class-card-head {
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 8px;
+  background: var(--elevated);
+}
+
+.students-class-open-btn:hover {
+  background: var(--quick-hover-bg);
+}
+
+.students-class-open-btn {
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+
+.students-class-open-btn h4 {
+  margin: 0;
+}
+
+.students-class-open-btn span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.students-class-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10040;
+  display: grid;
+  place-items: center;
+}
+
+.students-class-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.students-class-modal-dialog {
+  position: relative;
+  width: min(760px, 92vw);
+  max-height: 84vh;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.students-class-modal-head {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.students-class-modal-head h3 {
+  margin: 0;
+}
+
+.students-class-modal-body {
+  padding: 12px;
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+}
+
+.student-modal-row {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.student-modal-name {
+  font-weight: 700;
+}
+
+.student-modal-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.student-modal-actions select {
+  min-width: 120px;
+}
+
+.student-modal-hint {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 /* Grades journal (matrix) */
@@ -475,15 +579,8 @@ body {
   max-width: 100%;
 }
 
-.grades-journal-date-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.grades-journal-date-row input[type="date"] {
-  min-width: 140px;
+#grades-journal-class {
+  min-width: 220px;
 }
 
 .grades-journal-matrix-outer {
@@ -556,6 +653,17 @@ body {
   cursor: context-menu;
   min-width: 3rem;
   user-select: none;
+  transition: background-color 0.12s ease, box-shadow 0.12s ease, color 0.12s ease;
+}
+
+.grades-matrix-table tbody td.grades-matrix-cell:hover {
+  background: rgba(37, 99, 235, 0.08) !important;
+}
+
+.grades-matrix-table tbody td.grades-matrix-cell.grades-matrix-active {
+  background: rgba(37, 99, 235, 0.14) !important;
+  box-shadow: inset 0 0 0 2px var(--primary);
+  color: var(--text);
 }
 
 .grades-matrix-table tbody td.grades-matrix-cell.grades-matrix-empty {
@@ -901,23 +1009,14 @@ body {
   gap: 0 12px;
 }
 
+.schedule-settings-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .schedule-slot-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 12px;
-}
-
-.schedule-time-row.two.fields {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 12px;
-  margin: 0 0 0.85em !important;
-}
-
-.schedule-time-row.two.fields > .field {
-  flex: 1 1 120px;
-  min-width: 0;
-  margin-bottom: 0 !important;
 }
 
 .schedule-form-actions {
@@ -1005,6 +1104,10 @@ body {
 }
 
 @media (max-width: 900px) {
+  .schedule-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .schedule-slot-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1551,12 +1654,6 @@ html[data-theme="dark"] .dashboard-stat[data-stat="schedule"] .dashboard-stat-ic
   font-weight: 500;
 }
 
-.dashboard-next-week {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--muted-strong);
-}
-
 .home-next-lesson .meta {
   color: var(--muted);
   font-size: 12px;
@@ -1919,6 +2016,16 @@ html[data-theme="dark"] ::-webkit-scrollbar-track {
   border-radius: 8px !important;
   border: 1px solid var(--line) !important;
 }
+
+html[data-theme="dark"] .grades-matrix-table tbody td.grades-matrix-cell:hover {
+  background: rgba(110, 182, 255, 0.14) !important;
+}
+
+html[data-theme="dark"] .grades-matrix-table tbody td.grades-matrix-cell.grades-matrix-active {
+  background: rgba(110, 182, 255, 0.2) !important;
+  box-shadow: inset 0 0 0 2px #6eb6ff;
+}
+
 
 .ui.primary.button {
   background: var(--primary) !important;

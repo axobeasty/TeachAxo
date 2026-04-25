@@ -20,6 +20,7 @@ const SECTION_PERMISSIONS = {
   home: "view_dashboard",
   classes: "manage_classes",
   students: "manage_students",
+  subjects: "manage_schedule",
   grades: "manage_grades",
   schedule: "manage_schedule",
   profile: "access_profile",
@@ -28,13 +29,14 @@ const SECTION_PERMISSIONS = {
 
 const state = {
   classes: [],
+  subjects: [],
   students: [],
   grades: [],
   schedule: [],
   scheduleSettings: {
     firstLessonStart: "08:00",
     lessonDurationMin: 45,
-    dashboardWeekView: "auto"
+    breakDurationMin: 10
   },
   databaseConfig: {
     mode: "local",
@@ -83,9 +85,11 @@ const state = {
     iconPath: "",
     theme: "system"
   },
+  studentsModalClass: "",
   searchQuery: "",
   classSearchQuery: "",
   gradesJournalClass: "",
+  gradesJournalDateMode: "week",
   gradesJournalExtraDates: []
 };
 
@@ -131,57 +135,146 @@ function setUserThemePreference(pref) {
   bindSystemThemeListener();
 }
 
+function getActiveThemeForUi() {
+  return resolveDisplayTheme(state.uiConfig.theme);
+}
+
+function updateThemeToggleButton() {
+  const button = document.getElementById("theme-toggle-button");
+  if (!button) return;
+  const activeTheme = getActiveThemeForUi();
+  const isDark = activeTheme === "dark";
+  button.innerHTML = isDark
+    ? '<i class="sun icon"></i> Светлая тема'
+    : '<i class="moon icon"></i> Тёмная тема';
+}
+
 const dayOrder = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 
-function normalizeWeekCycle(value) {
-  const v = String(value || "").toLowerCase();
-  if (v === "1" || v === "2") return v;
-  return "both";
-}
-
-function formatWeekCycleLabel(value) {
-  const c = normalizeWeekCycle(value);
-  if (c === "both") return "Обе";
-  return c === "1" ? "I" : "II";
-}
-
-function weekCycleSortKey(value) {
-  const c = normalizeWeekCycle(value);
-  if (c === "both") return 0;
-  return c === "1" ? 1 : 2;
-}
-
-/** ISO 8601 week number (1–53), Monday-based week */
-function getISOWeek(date) {
-  const t = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const dayNr = (t.getDay() + 6) % 7;
-  t.setDate(t.getDate() - dayNr + 3);
-  const firstThursday = t.valueOf();
-  t.setMonth(0, 1);
-  if (t.getDay() !== 4) {
-    t.setMonth(0, 1 + ((4 - t.getDay() + 7) % 7));
-  }
-  return 1 + Math.ceil((firstThursday - t) / 604800000);
-}
-
-function getActiveDashboardWeekCycle() {
-  const mode = state.scheduleSettings.dashboardWeekView || "auto";
-  if (mode === "1" || mode === "2") return mode;
-  const w = getISOWeek(new Date());
-  return w % 2 === 1 ? "1" : "2";
-}
-
-function entryMatchesWeekFilter(entry, activeWeek) {
-  const c = normalizeWeekCycle(entry.weekCycle);
-  if (c === "both") return true;
-  return c === activeWeek;
-}
-
 function getDashboardScheduleEntries() {
-  const active = getActiveDashboardWeekCycle();
-  return getCurrentUserScheduleEntries().filter((e) => entryMatchesWeekFilter(e, active));
+  return getCurrentUserScheduleEntries();
 }
 const VERSION_CHANGELOG = {
+  "1.0.58": {
+    added: [],
+    changed: [
+      "Оценки: добавлен режим отображения дат «Текущая неделя / Все даты».",
+      "Выпадающие списки во всех разделах переведены на Semantic UI dropdown."
+    ],
+    removed: []
+  },
+  "1.0.57": {
+    added: [],
+    changed: [
+      "Вкладка «Оценки» упрощена: оставлена выборка только по классу, убрано ручное добавление дат.",
+      "Синхронизированы HTML/CSS: удалены устаревшие стили и обновлены тексты под актуальную логику расписания."
+    ],
+    removed: []
+  },
+  "1.0.56": {
+    added: [],
+    changed: [
+      "Вкладка «Оценки»: список классов и даты журнала дополнительно учитывают данные из расписания.",
+      "Выбор оценки в журнале доступен по ЛКМ через контекстное окно (1–5, Б, Н, очистка)."
+    ],
+    removed: []
+  },
+  "1.0.55": {
+    added: [],
+    changed: [
+      "Улучшен UX конструктора расписания: после добавления урока сохраняется выбранный день недели, а номер урока автоматически увеличивается на 1.",
+      "Обновлен стиль выпадающих списков по всему приложению, включая оформление открываемого списка опций."
+    ],
+    removed: []
+  },
+  "1.0.54": {
+    added: [
+      "В настройках конструктора расписания добавлена длительность перемены."
+    ],
+    changed: [
+      "При изменении настроек конструктора выполняется перерасчет времени существующих уроков.",
+      "При добавлении нового урока поле «Кабинет» сохраняет последнее введенное значение."
+    ],
+    removed: []
+  },
+  "1.0.53": {
+    added: [
+      "Добавлен раздел «Предметы» с возможностью управлять справочником предметов."
+    ],
+    changed: [
+      "В форме «Новый урок» поле предмета переведено на выпадающий список из справочника предметов."
+    ],
+    removed: []
+  },
+  "1.0.52": {
+    added: [
+      "В форме «Новый урок» поле класса переведено на выпадающий список, связанный со справочником классов."
+    ],
+    changed: [
+      "Список классов для расписания обновляется автоматически при изменениях во вкладке «Классы»."
+    ],
+    removed: []
+  },
+  "1.0.51": {
+    added: [],
+    changed: [
+      "Конструктор расписания упрощен: удалено деление по неделям I/II, время урока теперь рассчитывается автоматически по номеру урока и настройкам сетки."
+    ],
+    removed: []
+  },
+  "1.0.50": {
+    added: [
+      "Во вкладке «Оценки» добавлены столбцы дат уроков на основе расписания для выбранного класса."
+    ],
+    changed: [
+      "Журнал оценок автоматически объединяет даты из расписания, существующих оценок и вручную добавленных дат."
+    ],
+    removed: []
+  },
+  "1.0.49": {
+    added: [
+      "Во вкладке «Ученики» добавлена кнопка печати в каждой карточке класса для печати списка только выбранного класса."
+    ],
+    changed: [
+      "Форма входа обновлена: убраны подсказки с тестовыми учетными данными."
+    ],
+    removed: []
+  },
+  "1.0.48": {
+    added: [],
+    changed: [
+      "Печать списка учеников переработана: каждый класс печатается на отдельной странице (один класс — один лист)."
+    ],
+    removed: []
+  },
+  "1.0.47": {
+    added: [
+      "Вкладка «Ученики»: список классов отображается панелями, по нажатию открывается модальное окно со списком учеников класса."
+    ],
+    changed: [
+      "Форма создания ученика упрощена: убраны поля предмета и контактов.",
+      "Добавлена возможность переноса ученика из одного класса в другой прямо из модального окна класса."
+    ],
+    removed: []
+  },
+  "1.0.46": {
+    added: [
+      "Вкладка «Ученики»: список учеников сгруппирован по классам в формате карточек."
+    ],
+    changed: [
+      "Форма добавления ученика: выбор класса выполнен кнопками-переключателями вместо выпадающего списка."
+    ],
+    removed: []
+  },
+  "1.0.41": {
+    added: [
+      "Вкладка «Ученики»: список теперь сгруппирован по классам в виде карточек с карточками учеников внутри."
+    ],
+    changed: [
+      "Форма добавления ученика: выбор класса переведен с выпадающего списка на кнопки-переключатели."
+    ],
+    removed: []
+  },
   "1.0.40": {
     added: [
       "Расписание по двухнедельному циклу: урок — неделя I, II или обе; настройка отображаемой недели на дашборде (авто по ISO-неделе или вручную)."
@@ -323,9 +416,25 @@ function calculateLessonTime(lessonNumber) {
   if (!Number.isInteger(lessonIndex) || lessonIndex < 0) return null;
   const baseStartMinutes = toMinutes(state.scheduleSettings.firstLessonStart);
   const duration = Number(state.scheduleSettings.lessonDurationMin);
-  const start = fromMinutes(baseStartMinutes + lessonIndex * duration);
-  const end = fromMinutes(baseStartMinutes + (lessonIndex + 1) * duration);
+  const breakDuration = Math.max(0, Number(state.scheduleSettings.breakDurationMin) || 0);
+  const start = fromMinutes(baseStartMinutes + lessonIndex * (duration + breakDuration));
+  const end = fromMinutes(toMinutes(start) + duration);
   return { start, end };
+}
+
+function recalculateScheduleTimes() {
+  let changedCount = 0;
+  state.schedule.forEach((entry) => {
+    const lessonNumber = Number(entry.lessonNumber);
+    const timeRange = calculateLessonTime(lessonNumber);
+    if (!timeRange) return;
+    if (entry.start !== timeRange.start || entry.end !== timeRange.end) {
+      entry.start = timeRange.start;
+      entry.end = timeRange.end;
+      changedCount += 1;
+    }
+  });
+  return changedCount;
 }
 
 function escapeHtml(value) {
@@ -340,7 +449,14 @@ function escapeHtml(value) {
 function getJournalClassOptions() {
   const fromClasses = state.classes.map((c) => c.name).filter(Boolean);
   const fromStudents = [...new Set(state.students.map((s) => s.className).filter(Boolean))];
-  return [...new Set([...fromClasses, ...fromStudents])].sort((a, b) => a.localeCompare(b, "ru"));
+  const fromSchedule = [...new Set(state.schedule.map((s) => s.className).filter(Boolean))];
+  return [...new Set([...fromClasses, ...fromStudents, ...fromSchedule])].sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+function getScheduleSubjectOptions() {
+  const fromDirectory = state.subjects.map((s) => String(s.name || "").trim()).filter(Boolean);
+  const fromSchedule = [...new Set(state.schedule.map((s) => String(s.subject || "").trim()).filter(Boolean))];
+  return [...new Set([...fromDirectory, ...fromSchedule])].sort((a, b) => a.localeCompare(b, "ru"));
 }
 
 function getStudentSurname(student) {
@@ -362,17 +478,88 @@ function getStudentsForJournal(className) {
     });
 }
 
-function collectJournalDates(studentIds) {
+function toIsoDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDayIndexByName(dayName) {
+  const map = {
+    Понедельник: 1,
+    Вторник: 2,
+    Среда: 3,
+    Четверг: 4,
+    Пятница: 5,
+    Суббота: 6,
+    Воскресенье: 0
+  };
+  return map[dayName] ?? null;
+}
+
+function collectJournalDatesFromSchedule(className) {
+  const target = String(className || "").trim();
+  if (!target) return [];
+  // For grades journal we should consider the full class schedule,
+  // not only entries assigned to the currently logged-in user.
+  const classEntries = state.schedule.filter((entry) => String(entry.className || "").trim() === target);
+  if (!classEntries.length) return [];
+
+  const dates = new Set();
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - 30);
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+  end.setDate(end.getDate() + 120);
+
+  for (const cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+    const dayIndex = cursor.getDay();
+    for (const entry of classEntries) {
+      const entryDayIndex = getDayIndexByName(entry.day);
+      if (entryDayIndex === null || entryDayIndex !== dayIndex) continue;
+      dates.add(toIsoDate(cursor));
+      break;
+    }
+  }
+
+  return [...dates].sort();
+}
+
+function collectJournalDates(studentIds, className = "") {
   const idSet = new Set(studentIds);
   const fromGrades = state.grades.filter((g) => idSet.has(g.studentId)).map((g) => g.date);
   const extra = Array.isArray(state.gradesJournalExtraDates) ? state.gradesJournalExtraDates : [];
-  return [...new Set([...fromGrades, ...extra].filter(Boolean))].sort();
+  const fromSchedule = collectJournalDatesFromSchedule(className);
+  return [...new Set([...fromSchedule, ...fromGrades, ...extra].filter(Boolean))].sort();
 }
 
 function formatGradeDateHeader(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
   if (!m) return String(iso || "");
   return `${m[3]}.${m[2]}.${m[1]}`;
+}
+
+function parseIsoDate(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  d.setHours(0, 0, 0, 0);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isDateInCurrentWeek(isoDate) {
+  const target = parseIsoDate(isoDate);
+  if (!target) return false;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const currentDay = (now.getDay() + 6) % 7;
+  const start = new Date(now);
+  start.setDate(now.getDate() - currentDay);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return target >= start && target <= end;
 }
 
 function findGradeForCell(studentId, date) {
@@ -392,6 +579,7 @@ function setGradeCell(studentId, date, value) {
 }
 
 let gradesContextTarget = null;
+let gradesActiveTarget = null;
 
 function hideGradesContextMenu() {
   const menu = document.getElementById("grades-context-menu");
@@ -400,6 +588,60 @@ function hideGradesContextMenu() {
     menu.setAttribute("aria-hidden", "true");
   }
   gradesContextTarget = null;
+}
+
+function findGradesCellByTarget(target) {
+  if (!target?.studentId || !target?.lessonDate) return null;
+  return document.querySelector(
+    `.grades-matrix-cell[data-student-id="${target.studentId}"][data-lesson-date="${target.lessonDate}"]`
+  );
+}
+
+function setActiveGradesCell(cell, focus = false) {
+  document.querySelectorAll(".grades-matrix-cell.grades-matrix-active").forEach((el) => {
+    el.classList.remove("grades-matrix-active");
+  });
+  if (!cell) {
+    gradesActiveTarget = null;
+    return;
+  }
+  cell.classList.add("grades-matrix-active");
+  gradesActiveTarget = {
+    studentId: cell.dataset.studentId,
+    lessonDate: cell.dataset.lessonDate
+  };
+  if (focus) cell.focus();
+}
+
+function moveActiveGradesCell(deltaRow, deltaCol) {
+  const cells = [...document.querySelectorAll(".grades-matrix-cell")];
+  if (!cells.length) return;
+  let current = findGradesCellByTarget(gradesActiveTarget);
+  if (!current) current = cells[0];
+  const currentRow = current.parentElement;
+  const bodyRows = [...document.querySelectorAll("#grades-matrix-body tr")];
+  const rowIndex = bodyRows.indexOf(currentRow);
+  const rowCells = [...currentRow.querySelectorAll(".grades-matrix-cell")];
+  const colIndex = rowCells.indexOf(current);
+  if (rowIndex < 0 || colIndex < 0) return;
+  const nextRowIndex = Math.max(0, Math.min(bodyRows.length - 1, rowIndex + deltaRow));
+  const nextRow = bodyRows[nextRowIndex];
+  const nextRowCells = [...nextRow.querySelectorAll(".grades-matrix-cell")];
+  const nextColIndex = Math.max(0, Math.min(nextRowCells.length - 1, colIndex + deltaCol));
+  const nextCell = nextRowCells[nextColIndex];
+  if (!nextCell) return;
+  setActiveGradesCell(nextCell, true);
+  nextCell.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+
+function pickGradeByKeyboard(event) {
+  const key = event.key;
+  if (/^[1-5]$/.test(key)) return key;
+  if (/^Numpad[1-5]$/.test(event.code || "")) return (event.code || "").replace("Numpad", "");
+  if (key === "б" || key === "Б" || key.toLowerCase() === "b") return "Б";
+  if (key === "н" || key === "Н" || key.toLowerCase() === "n") return "Н";
+  if (key === "Backspace" || key === "Delete") return "";
+  return null;
 }
 
 function showGradesContextMenu(clientX, clientY) {
@@ -470,7 +712,7 @@ function canAccessSection(section) {
 }
 
 function getDefaultSection() {
-  const order = ["home", "classes", "students", "grades", "schedule", "access", "profile", "settings"];
+  const order = ["home", "classes", "students", "subjects", "grades", "schedule", "access", "profile", "settings"];
   for (const id of order) {
     if (canAccessSection(id)) return id;
   }
@@ -489,15 +731,14 @@ function getSectionAccessMessage(section) {
 function applyLoadedState(parsed) {
   if (!parsed) return;
   state.classes = Array.isArray(parsed.classes) ? parsed.classes : [];
+  state.subjects = Array.isArray(parsed.subjects) ? parsed.subjects : [];
   state.students = Array.isArray(parsed.students) ? parsed.students : [];
   state.grades = Array.isArray(parsed.grades) ? parsed.grades : [];
   state.schedule = Array.isArray(parsed.schedule) ? parsed.schedule : [];
   state.scheduleSettings = {
     firstLessonStart: parsed.scheduleSettings?.firstLessonStart || "08:00",
     lessonDurationMin: Number(parsed.scheduleSettings?.lessonDurationMin) || 45,
-    dashboardWeekView: ["auto", "1", "2"].includes(parsed.scheduleSettings?.dashboardWeekView)
-      ? parsed.scheduleSettings.dashboardWeekView
-      : "auto"
+    breakDurationMin: Math.max(0, Number(parsed.scheduleSettings?.breakDurationMin) || 10)
   };
   state.databaseConfig = {
     mode: parsed.databaseConfig?.mode === "remote" ? "remote" : "local",
@@ -526,6 +767,7 @@ function applyLoadedState(parsed) {
     rememberedUserId: hasAuthSettings ? parsed.auth?.rememberedUserId ?? null : parsed.currentUserId ?? null
   };
   state.gradesJournalClass = typeof parsed.gradesJournalClass === "string" ? parsed.gradesJournalClass : "";
+  state.gradesJournalDateMode = parsed.gradesJournalDateMode === "all" ? "all" : "week";
   state.gradesJournalExtraDates = Array.isArray(parsed.gradesJournalExtraDates)
     ? parsed.gradesJournalExtraDates.filter((d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
     : [];
@@ -553,6 +795,7 @@ async function loadState() {
 function saveState() {
   const snapshot = {
     classes: state.classes,
+    subjects: state.subjects,
     students: state.students,
     grades: state.grades,
     schedule: state.schedule,
@@ -563,6 +806,7 @@ function saveState() {
     currentUserId: state.currentUserId,
     auth: state.auth,
     gradesJournalClass: state.gradesJournalClass,
+    gradesJournalDateMode: state.gradesJournalDateMode,
     gradesJournalExtraDates: state.gradesJournalExtraDates
   };
   if (!window.teachAxoDb?.saveState) {
@@ -729,33 +973,227 @@ function renderClasses() {
     .join("");
 }
 
-function renderClassesDatalist() {
-  document.getElementById("classes-datalist").innerHTML = state.classes
-    .map((classItem) => `<option value="${escapeHtml(classItem.name)}"></option>`)
+function renderSubjects() {
+  const tbody = document.getElementById("subjects-table-body");
+  if (!tbody) return;
+  const sorted = [...state.subjects].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ru"));
+  tbody.innerHTML = sorted
+    .map((subject) => {
+      const count = state.schedule.filter((entry) => String(entry.subject || "") === String(subject.name || "")).length;
+      return `<tr>
+        <td>${escapeHtml(subject.name)}</td>
+        <td>${count}</td>
+        <td><button class="ui mini red button" data-delete-subject="${subject.id}">Удалить</button></td>
+      </tr>`;
+    })
+    .join("");
+}
+
+function renderScheduleClassSelect() {
+  const classSelect = document.getElementById("schedule-class");
+  if (!classSelect) return;
+
+  const classNames = state.classes
+    .map((item) => item.name?.trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "ru"));
+  const currentValue = classSelect.value;
+
+  classSelect.innerHTML = classNames.length
+    ? [`<option value="">Выберите класс</option>`, ...classNames.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)].join("")
+    : `<option value="">Сначала добавьте класс</option>`;
+
+  if (classNames.includes(currentValue)) {
+    classSelect.value = currentValue;
+  } else {
+    classSelect.value = "";
+  }
+
+  const submitButton = document.querySelector("#schedule-form button[type='submit']");
+  const hasSubjectOptions = getScheduleSubjectOptions().length > 0;
+  if (submitButton) submitButton.disabled = classNames.length === 0 || !hasSubjectOptions;
+}
+
+function renderScheduleSubjectSelect() {
+  const subjectSelect = document.getElementById("schedule-subject");
+  if (!subjectSelect) return;
+  const options = getScheduleSubjectOptions();
+  const currentValue = subjectSelect.value;
+  subjectSelect.innerHTML = options.length
+    ? [`<option value="">Выберите предмет</option>`, ...options.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)].join("")
+    : `<option value="">Сначала добавьте предмет</option>`;
+  subjectSelect.value = options.includes(currentValue) ? currentValue : "";
+  const submitButton = document.querySelector("#schedule-form button[type='submit']");
+  if (submitButton) submitButton.disabled = options.length === 0 || state.classes.length === 0;
+}
+
+function renderStudentClassToggle() {
+  const toggleWrap = document.getElementById("student-class-toggle");
+  const hiddenInput = document.getElementById("student-class");
+  const hint = document.getElementById("student-class-toggle-hint");
+  const submitButton = document.querySelector("#student-form button[type='submit']");
+  if (!toggleWrap || !hiddenInput) return;
+
+  const classNames = state.classes
+    .map((item) => item.name?.trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "ru"));
+  const currentValue = hiddenInput.value.trim();
+  const hasCurrent = currentValue && classNames.includes(currentValue);
+
+  if (!classNames.length) {
+    hiddenInput.value = "";
+    toggleWrap.innerHTML = "";
+    toggleWrap.classList.add("is-empty");
+    if (hint) hint.classList.remove("hidden");
+    if (submitButton) submitButton.disabled = true;
+    return;
+  }
+
+  if (submitButton) submitButton.disabled = false;
+  toggleWrap.classList.remove("is-empty");
+  if (hint) hint.classList.add("hidden");
+  hiddenInput.value = hasCurrent ? currentValue : classNames[0];
+
+  toggleWrap.innerHTML = classNames
+    .map((className) => {
+      const isActive = className === hiddenInput.value;
+      return `<button type="button" class="student-class-chip${isActive ? " active" : ""}" data-student-class="${escapeHtml(
+        className
+      )}" role="radio" aria-checked="${isActive ? "true" : "false"}">${escapeHtml(className)}</button>`;
+    })
+    .join("");
+}
+
+function getSortedClassNames() {
+  return [...new Set(state.classes.map((item) => item.name?.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+function openStudentsClassModal(className) {
+  const modal = document.getElementById("students-class-modal");
+  if (!modal) return;
+  state.studentsModalClass = String(className || "");
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+  renderStudentsClassModal();
+}
+
+function closeStudentsClassModal() {
+  const modal = document.getElementById("students-class-modal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden", "true");
+  state.studentsModalClass = "";
+}
+
+function printSingleClassList(className) {
+  const target = String(className || "").trim();
+  if (!target) return;
+  const students = state.students
+    .filter((student) => String(student.className || "").trim() === target)
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  const rows = students
+    .map((s) => `<tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.notes || "-")}</td></tr>`)
+    .join("");
+  const content = students.length
+    ? `<h2>Класс: ${escapeHtml(target)}</h2><table><thead><tr><th>ФИО</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table>`
+    : `<h2>Класс: ${escapeHtml(target)}</h2><p>В этом классе нет учеников.</p>`;
+  printHtml(`TeachAxo - Список учеников (${target})`, content);
+}
+
+function renderStudentsClassModal() {
+  const title = document.getElementById("students-class-modal-title");
+  const body = document.getElementById("students-class-modal-body");
+  if (!title || !body) return;
+
+  const className = state.studentsModalClass;
+  if (!className) {
+    title.textContent = "Класс";
+    body.innerHTML = `<div class="students-empty-hint">Класс не выбран.</div>`;
+    return;
+  }
+
+  title.textContent = `Класс ${className}`;
+  const students = state.students
+    .filter((student) => student.className === className)
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  const classNames = getSortedClassNames();
+
+  if (!students.length) {
+    body.innerHTML = `<div class="students-empty-hint">В этом классе нет учеников.</div>`;
+    return;
+  }
+
+  body.innerHTML = students
+    .map((student) => {
+      const moveOptions = classNames
+        .filter((name) => name !== className)
+        .map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
+        .join("");
+      return `<article class="student-modal-row">
+        <div class="student-modal-name">${escapeHtml(student.name)}</div>
+        ${
+          moveOptions
+            ? `<div class="student-modal-actions">
+            <select data-move-student-select="${escapeHtml(student.id)}">
+              ${moveOptions}
+            </select>
+            <button class="ui mini button" type="button" data-move-student="${escapeHtml(student.id)}">Перенести</button>
+            <button class="ui mini red button" type="button" data-delete-student="${escapeHtml(student.id)}">Удалить</button>
+          </div>`
+            : `<div class="student-modal-actions">
+            <span class="student-modal-hint">Нет других классов для переноса</span>
+            <button class="ui mini red button" type="button" data-delete-student="${escapeHtml(student.id)}">Удалить</button>
+          </div>`
+        }
+      </article>`;
+    })
     .join("");
 }
 
 function renderStudents() {
-  const tbody = document.getElementById("students-table-body");
+  const groups = document.getElementById("students-class-groups");
   const query = state.searchQuery.toLowerCase().trim();
   const filtered = state.students.filter((student) =>
-    `${student.name} ${student.className} ${student.subject}`.toLowerCase().includes(query)
+    `${student.name} ${student.className}`.toLowerCase().includes(query)
   );
-  tbody.innerHTML = filtered
-    .map(
-      (student) => `<tr>
-        <td>${escapeHtml(student.name)}</td>
-        <td>${escapeHtml(student.className)}</td>
-        <td>${escapeHtml(student.subject || "-")}</td>
-        <td>${escapeHtml(student.contact || "-")}</td>
-        <td><button class="ui mini red button" data-delete-student="${student.id}">Удалить</button></td>
-      </tr>`
-    )
+  const grouped = new Map();
+  filtered.forEach((student) => {
+    const className = student.className || "Без класса";
+    if (!grouped.has(className)) grouped.set(className, []);
+    grouped.get(className).push(student);
+  });
+
+  const sortedClassNames = [...grouped.keys()].sort((a, b) => a.localeCompare(b, "ru"));
+  if (!sortedClassNames.length) {
+    groups.innerHTML = `<div class="students-empty-hint">По вашему запросу ученики не найдены.</div>`;
+    return;
+  }
+
+  groups.innerHTML = sortedClassNames
+    .map((className) => {
+      const students = grouped.get(className) || [];
+      return `<section class="students-class-card">
+        <div class="students-class-card-head">
+          <button type="button" class="students-class-open-btn" data-open-class="${escapeHtml(className)}">
+            <h4>${escapeHtml(className)}</h4>
+            <span>${students.length} учен.</span>
+          </button>
+          <button type="button" class="ui mini button" data-print-class="${escapeHtml(className)}">Печать</button>
+        </div>
+      </section>`;
+    })
     .join("");
+
+  const modal = document.getElementById("students-class-modal");
+  if (modal && !modal.classList.contains("hidden")) {
+    renderStudentsClassModal();
+  }
 }
 
 function renderGradesJournalToolbar() {
   const classSelect = document.getElementById("grades-journal-class");
+  const dateModeSelect = document.getElementById("grades-journal-date-mode");
   if (!classSelect) return;
 
   const classes = getJournalClassOptions();
@@ -769,6 +1207,9 @@ function renderGradesJournalToolbar() {
     ? classes.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")
     : `<option value="">— Нет классов —</option>`;
   classSelect.value = currentClass;
+  if (dateModeSelect) {
+    dateModeSelect.value = state.gradesJournalDateMode === "all" ? "all" : "week";
+  }
 }
 
 function renderGradesJournal() {
@@ -782,7 +1223,8 @@ function renderGradesJournal() {
   const className = state.gradesJournalClass;
   const students = className ? getStudentsForJournal(className) : [];
   const studentIds = students.map((s) => s.id);
-  const dates = className && studentIds.length ? collectJournalDates(studentIds) : className ? collectJournalDates([]) : [];
+  const allDates = className ? collectJournalDates(studentIds, className) : [];
+  const dates = state.gradesJournalDateMode === "all" ? allDates : allDates.filter((d) => isDateInCurrentWeek(d));
 
   if (!className || !students.length) {
     thead.innerHTML = "";
@@ -824,7 +1266,7 @@ function renderGradesJournal() {
           const val = g ? g.value : "";
           const display = val === "" ? "·" : escapeHtml(val);
           const emptyClass = val === "" ? " grades-matrix-empty" : "";
-          return `<td class="grades-matrix-cell${emptyClass}" data-student-id="${escapeHtml(
+          return `<td class="grades-matrix-cell${emptyClass}" tabindex="-1" data-student-id="${escapeHtml(
             student.id
           )}" data-lesson-date="${escapeHtml(date)}">${display}</td>`;
         })
@@ -835,20 +1277,25 @@ function renderGradesJournal() {
       </tr>`;
     })
     .join("");
+
+  const activeCell = findGradesCellByTarget(gradesActiveTarget);
+  if (activeCell) {
+    setActiveGradesCell(activeCell, false);
+  } else {
+    const firstCell = tbody.querySelector(".grades-matrix-cell");
+    if (firstCell) setActiveGradesCell(firstCell, false);
+  }
 }
 
 function renderSchedule() {
   const tbody = document.getElementById("schedule-table-body");
   const sorted = [...state.schedule].sort((a, b) => {
-    const wDiff = weekCycleSortKey(a.weekCycle) - weekCycleSortKey(b.weekCycle);
-    if (wDiff !== 0) return wDiff;
     const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
     return dayDiff !== 0 ? dayDiff : a.start.localeCompare(b.start);
   });
   tbody.innerHTML = sorted
     .map(
       (entry) => `<tr>
-        <td>${escapeHtml(formatWeekCycleLabel(entry.weekCycle))}</td>
         <td>${escapeHtml(entry.day)}</td>
         <td>${escapeHtml(entry.start)} - ${escapeHtml(entry.end)}</td>
         <td>${escapeHtml(entry.className)}</td>
@@ -876,14 +1323,8 @@ function getCurrentUserScheduleEntries() {
 function renderHomeSchedule() {
   const tbody = document.getElementById("home-schedule-table-body");
   const weekLine = document.getElementById("home-schedule-week-line");
-  const activeWeek = getActiveDashboardWeekCycle();
-  const mode = state.scheduleSettings.dashboardWeekView || "auto";
   if (weekLine) {
-    const modeHint =
-      mode === "auto"
-        ? `номер ISO-недели ${getISOWeek(new Date())} — считаем «неделей ${activeWeek === "1" ? "I" : "II"}»`
-        : "выбрано вручную в настройках сетки";
-    weekLine.textContent = `Показана неделя ${activeWeek === "1" ? "I" : "II"} (${modeHint}). Уроки с типом «Обе» видны всегда.`;
+    weekLine.textContent = "Показывается актуальное расписание без деления на недели цикла.";
   }
 
   const sorted = [...getDashboardScheduleEntries()].sort((a, b) => {
@@ -892,12 +1333,7 @@ function renderHomeSchedule() {
   });
 
   if (sorted.length === 0) {
-    const anyMine = getCurrentUserScheduleEntries().length > 0;
-    tbody.innerHTML = `<tr><td colspan="8" class="center aligned">${
-      anyMine
-        ? "Нет уроков для этой недели цикла. Смените неделю на дашборде в настройках сетки или добавьте слоты (I / II / обе)."
-        : "У вас пока нет записей в расписании. Добавьте слоты в разделе «Расписание»."
-    }</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="center aligned">У вас пока нет записей в расписании. Добавьте слоты в разделе «Расписание».</td></tr>`;
     return;
   }
 
@@ -962,12 +1398,7 @@ function renderHomeDashboard() {
   const nextLessonsContainer = document.getElementById("home-next-lessons");
 
   if (nextLessons.length === 0) {
-    const anyMine = getCurrentUserScheduleEntries().length > 0;
-    nextLessonsContainer.innerHTML = `<div class="dashboard-empty">${
-      anyMine
-        ? "Для текущей недели цикла на дашборде уроков нет. Смените неделю в настройках сетки или добавьте слоты."
-        : "Пока нет уроков в расписании. Добавьте слоты в разделе «Расписание»."
-    }</div>`;
+    nextLessonsContainer.innerHTML = `<div class="dashboard-empty">Пока нет уроков в расписании. Добавьте слоты в разделе «Расписание».</div>`;
     return;
   }
 
@@ -976,7 +1407,7 @@ function renderHomeDashboard() {
       (entry, index) => `<article class="home-next-lesson dashboard-next-item">
       <span class="dashboard-next-index" aria-hidden="true">${index + 1}</span>
       <div class="dashboard-next-body">
-        <div class="title">${escapeHtml(entry.day)} · ${escapeHtml(entry.start)}–${escapeHtml(entry.end)}<span class="dashboard-next-week"> · нед. ${escapeHtml(formatWeekCycleLabel(entry.weekCycle))}</span></div>
+        <div class="title">${escapeHtml(entry.day)} · ${escapeHtml(entry.start)}–${escapeHtml(entry.end)}</div>
         <div class="dashboard-next-subject">${escapeHtml(entry.subject)} <span class="dashboard-next-class">(${escapeHtml(entry.className)})</span></div>
         <div class="meta">Кабинет: ${escapeHtml(entry.room || "-")}${entry.notes ? ` · ${escapeHtml(entry.notes)}` : ""}</div>
       </div>
@@ -1234,7 +1665,10 @@ function renderStatusBar() {
 
 function renderAll() {
   renderClasses();
-  renderClassesDatalist();
+  renderSubjects();
+  renderScheduleClassSelect();
+  renderScheduleSubjectSelect();
+  renderStudentClassToggle();
   renderStudents();
   renderGradesJournal();
   renderSchedule();
@@ -1245,6 +1679,7 @@ function renderAll() {
   renderRoles();
   renderUsers();
   renderStatusBar();
+  updateThemeToggleButton();
   applyAccessControl();
 }
 
@@ -1351,42 +1786,138 @@ function setupClassesHandlers() {
   });
 }
 
-function setupStudentHandlers() {
-  const form = document.getElementById("student-form");
-  document.getElementById("student-search").addEventListener("input", (event) => {
-    state.searchQuery = event.target.value;
-    renderStudents();
-  });
+function setupSubjectsHandlers() {
+  const form = document.getElementById("subject-form");
+  const tbody = document.getElementById("subjects-table-body");
+  if (!form || !tbody) return;
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!requirePermission("manage_students")) return;
-    const name = document.getElementById("student-name").value.trim();
-    const className = document.getElementById("student-class").value.trim();
-    const subject = document.getElementById("student-subject").value.trim();
-    const contact = document.getElementById("student-contact").value.trim();
-    const notes = document.getElementById("student-notes").value.trim();
-    if (!name || !className) return;
-    ensureClassExists(className);
-    state.students.push({ id: uid(), name, className, subject, contact, notes });
+    if (!requirePermission("manage_schedule")) return;
+    const name = document.getElementById("subject-name").value.trim();
+    if (!name) return;
+    const exists = state.subjects.some((item) => String(item.name || "").toLowerCase() === name.toLowerCase());
+    if (exists) {
+      notifyUser("Такой предмет уже существует.", "warning");
+      return;
+    }
+    state.subjects.push({ id: uid(), name });
     form.reset();
     saveState();
     renderAll();
   });
-  document.getElementById("students-table-body").addEventListener("click", (event) => {
-    if (!requirePermission("manage_students")) return;
-    const studentId = event.target.dataset.deleteStudent;
-    if (!studentId) return;
-    state.students = state.students.filter((student) => student.id !== studentId);
-    state.grades = state.grades.filter((grade) => grade.studentId !== studentId);
+
+  tbody.addEventListener("click", (event) => {
+    if (!requirePermission("manage_schedule")) return;
+    const subjectId = event.target.dataset.deleteSubject;
+    if (!subjectId) return;
+    const subject = state.subjects.find((item) => item.id === subjectId);
+    if (!subject) return;
+    const inUse = state.schedule.some((entry) => String(entry.subject || "") === String(subject.name || ""));
+    if (inUse) {
+      notifyUser("Нельзя удалить предмет, пока он используется в расписании.", "warning");
+      return;
+    }
+    state.subjects = state.subjects.filter((item) => item.id !== subjectId);
     saveState();
     renderAll();
   });
 }
 
+function setupStudentHandlers() {
+  const form = document.getElementById("student-form");
+  const classToggleWrap = document.getElementById("student-class-toggle");
+  const classHiddenInput = document.getElementById("student-class");
+  const classGroups = document.getElementById("students-class-groups");
+  const classModal = document.getElementById("students-class-modal");
+
+  document.getElementById("student-search").addEventListener("input", (event) => {
+    state.searchQuery = event.target.value;
+    renderStudents();
+  });
+
+  if (classToggleWrap && classHiddenInput) {
+    classToggleWrap.addEventListener("click", (event) => {
+      const pick = event.target.closest("[data-student-class]");
+      if (!pick) return;
+      classHiddenInput.value = pick.dataset.studentClass || "";
+      renderStudentClassToggle();
+    });
+  }
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!requirePermission("manage_students")) return;
+    const name = document.getElementById("student-name").value.trim();
+    const className = classHiddenInput.value.trim();
+    const notes = document.getElementById("student-notes").value.trim();
+    if (!name || !className) return;
+    ensureClassExists(className);
+    state.students.push({ id: uid(), name, className, notes });
+    const selectedClass = className;
+    form.reset();
+    classHiddenInput.value = selectedClass;
+    saveState();
+    renderAll();
+  });
+
+  classGroups.addEventListener("click", (event) => {
+    const openClass = event.target.closest("[data-open-class]");
+    if (openClass) {
+      openStudentsClassModal(openClass.dataset.openClass);
+      return;
+    }
+    const printClass = event.target.closest("[data-print-class]");
+    if (printClass) {
+      printSingleClassList(printClass.dataset.printClass);
+    }
+  });
+
+  if (classModal) {
+    classModal.addEventListener("click", (event) => {
+      const closeBtn = event.target.closest("[data-close-students-modal]");
+      if (closeBtn) {
+        closeStudentsClassModal();
+        return;
+      }
+      if (!requirePermission("manage_students")) return;
+      const studentId = event.target.dataset.deleteStudent;
+      if (studentId) {
+        state.students = state.students.filter((student) => student.id !== studentId);
+        state.grades = state.grades.filter((grade) => grade.studentId !== studentId);
+        saveState();
+        renderAll();
+        return;
+      }
+      const moveStudentId = event.target.dataset.moveStudent;
+      if (!moveStudentId) return;
+      const student = state.students.find((item) => item.id === moveStudentId);
+      if (!student) return;
+      const row = event.target.closest(".student-modal-row");
+      const select = row?.querySelector(`[data-move-student-select]`);
+      const targetClass = select?.value?.trim();
+      if (!targetClass || targetClass === student.className) return;
+      ensureClassExists(targetClass);
+      student.className = targetClass;
+      saveState();
+      renderAll();
+      if (state.studentsModalClass && !state.students.some((s) => s.className === state.studentsModalClass)) {
+        closeStudentsClassModal();
+      } else if (!classModal.classList.contains("hidden")) {
+        renderStudentsClassModal();
+      }
+    });
+  }
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeStudentsClassModal();
+    }
+  });
+}
+
 function setupGradesHandlers() {
   const classSelect = document.getElementById("grades-journal-class");
-  const addDateBtn = document.getElementById("grades-journal-add-date-btn");
-  const newDateInput = document.getElementById("grades-journal-new-date");
+  const dateModeSelect = document.getElementById("grades-journal-date-mode");
   const matrixWrap = document.getElementById("grades-journal-matrix-wrap");
   const menu = document.getElementById("grades-context-menu");
 
@@ -1397,27 +1928,31 @@ function setupGradesHandlers() {
       renderGradesJournal();
     });
   }
-
-  if (addDateBtn && newDateInput) {
-    addDateBtn.addEventListener("click", () => {
-      if (!requirePermission("manage_grades")) return;
-      const d = newDateInput.value;
-      if (!d) {
-        notifyUser("Выберите дату урока.", "warning");
-        return;
-      }
-      if (!state.gradesJournalExtraDates.includes(d)) {
-        state.gradesJournalExtraDates = [...state.gradesJournalExtraDates, d].sort();
-        saveState();
-      }
+  if (dateModeSelect) {
+    dateModeSelect.addEventListener("change", () => {
+      state.gradesJournalDateMode = dateModeSelect.value === "all" ? "all" : "week";
+      saveState();
       renderGradesJournal();
     });
   }
 
   if (matrixWrap) {
+    matrixWrap.addEventListener("click", (e) => {
+      const cell = e.target.closest("td.grades-matrix-cell");
+      if (!cell) return;
+      setActiveGradesCell(cell, true);
+      if (!hasPermission("manage_grades")) return;
+      const studentId = cell.dataset.studentId;
+      const lessonDate = cell.dataset.lessonDate;
+      if (!studentId || !lessonDate) return;
+      gradesContextTarget = { studentId, lessonDate };
+      const rect = cell.getBoundingClientRect();
+      showGradesContextMenu(rect.left + 8, rect.bottom + 6);
+    });
     matrixWrap.addEventListener("contextmenu", (e) => {
       const cell = e.target.closest("td.grades-matrix-cell");
       if (!cell) return;
+      setActiveGradesCell(cell, true);
       if (!hasPermission("manage_grades")) return;
       e.preventDefault();
       const studentId = cell.dataset.studentId;
@@ -1447,7 +1982,49 @@ function setupGradesHandlers() {
     hideGradesContextMenu();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") hideGradesContextMenu();
+    if (e.key === "Escape") {
+      hideGradesContextMenu();
+      return;
+    }
+    if (!hasPermission("manage_grades")) return;
+    const activeElement = document.activeElement;
+    const isTypingContext = ["INPUT", "TEXTAREA", "SELECT"].includes(activeElement?.tagName);
+    if (isTypingContext && !activeElement?.classList?.contains("grades-matrix-cell")) return;
+    const hasMatrix = document.getElementById("grades-matrix-body")?.querySelector(".grades-matrix-cell");
+    if (!hasMatrix) return;
+
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      moveActiveGradesCell(0, -1);
+      return;
+    }
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      moveActiveGradesCell(0, 1);
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      moveActiveGradesCell(-1, 0);
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveActiveGradesCell(1, 0);
+      return;
+    }
+
+    const nextGrade = pickGradeByKeyboard(e);
+    if (nextGrade === null) return;
+    const cell = findGradesCellByTarget(gradesActiveTarget);
+    if (!cell) return;
+    e.preventDefault();
+    const studentId = cell.dataset.studentId;
+    const lessonDate = cell.dataset.lessonDate;
+    if (!studentId || !lessonDate) return;
+    setGradeCell(studentId, lessonDate, nextGrade);
+    const refreshedCell = findGradesCellByTarget({ studentId, lessonDate });
+    if (refreshedCell) setActiveGradesCell(refreshedCell, true);
   });
 }
 
@@ -1456,63 +2033,44 @@ function setupScheduleHandlers() {
   const settingsForm = document.getElementById("schedule-settings-form");
   const firstLessonStartInput = document.getElementById("schedule-first-lesson-start");
   const lessonDurationSelect = document.getElementById("schedule-lesson-duration");
+  const breakDurationInput = document.getElementById("schedule-break-duration");
   const lessonNumberInput = document.getElementById("schedule-lesson-number");
-  const startInput = document.getElementById("schedule-start");
-  const endInput = document.getElementById("schedule-end");
-
-  const applyCalculatedTime = () => {
-    const lessonNumber = Number(lessonNumberInput.value);
-    const timeRange = calculateLessonTime(lessonNumber);
-    if (!timeRange) {
-      startInput.value = "";
-      endInput.value = "";
-      return;
-    }
-    startInput.value = timeRange.start;
-    endInput.value = timeRange.end;
-  };
-
-  const dashboardWeekSelect = document.getElementById("schedule-dashboard-week-view");
 
   const syncSettingsForm = () => {
     firstLessonStartInput.value = state.scheduleSettings.firstLessonStart;
     lessonDurationSelect.value = String(state.scheduleSettings.lessonDurationMin);
-    if (dashboardWeekSelect) {
-      dashboardWeekSelect.value = state.scheduleSettings.dashboardWeekView || "auto";
-    }
+    breakDurationInput.value = String(Math.max(0, Number(state.scheduleSettings.breakDurationMin) || 10));
   };
 
   syncSettingsForm();
-  applyCalculatedTime();
 
   settingsForm.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!requirePermission("manage_schedule")) return;
     const firstLessonStart = firstLessonStartInput.value;
     const lessonDurationMin = Number(lessonDurationSelect.value);
-    if (!firstLessonStart || ![40, 45, 90].includes(lessonDurationMin)) {
+    const breakDurationMin = Number(breakDurationInput.value);
+    if (!firstLessonStart || ![40, 45, 90].includes(lessonDurationMin) || !Number.isInteger(breakDurationMin) || breakDurationMin < 0 || breakDurationMin > 60) {
       notifyUser("Проверьте настройки расписания.", "warning");
-      return;
-    }
-    const dashboardWeekView = dashboardWeekSelect?.value || "auto";
-    if (!["auto", "1", "2"].includes(dashboardWeekView)) {
-      notifyUser("Некорректное значение недели для дашборда.", "warning");
       return;
     }
     state.scheduleSettings = {
       ...state.scheduleSettings,
       firstLessonStart,
       lessonDurationMin,
-      dashboardWeekView
+      breakDurationMin
     };
+    const changedCount = recalculateScheduleTimes();
     saveState();
-    applyCalculatedTime();
+    renderSchedule();
     renderHomeSchedule();
     renderHomeDashboard();
+    if (changedCount > 0) {
+      notifyUser(`Настройки сохранены. Пересчитано уроков: ${changedCount}.`, "success");
+      return;
+    }
     notifyUser("Настройки конструктора расписания сохранены.", "success");
   });
-
-  lessonNumberInput.addEventListener("input", applyCalculatedTime);
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -1520,14 +2078,12 @@ function setupScheduleHandlers() {
     const day = document.getElementById("schedule-day").value;
     const lessonNumber = Number(lessonNumberInput.value);
     const timeRange = calculateLessonTime(lessonNumber);
-    const start = startInput.value || timeRange?.start || "";
-    const end = endInput.value || timeRange?.end || "";
+    const start = timeRange?.start || "";
+    const end = timeRange?.end || "";
     const className = document.getElementById("schedule-class").value.trim();
     const subject = document.getElementById("schedule-subject").value.trim();
     const room = document.getElementById("schedule-room").value.trim();
     const notes = document.getElementById("schedule-notes").value.trim();
-    const weekCycleRaw = document.getElementById("schedule-week-cycle")?.value || "1";
-    const weekCycle = ["1", "2", "both"].includes(weekCycleRaw) ? weekCycleRaw : "1";
     if (!day || !start || !end || !className || !subject || !Number.isInteger(lessonNumber) || lessonNumber < 1) {
       notifyUser("Заполните день, номер урока, класс и предмет.", "warning");
       return;
@@ -1539,7 +2095,6 @@ function setupScheduleHandlers() {
     state.schedule.push({
       id: uid(),
       userId: state.currentUserId,
-      weekCycle,
       day,
       lessonNumber,
       start,
@@ -1549,8 +2104,15 @@ function setupScheduleHandlers() {
       room,
       notes
     });
+    const savedDay = day;
+    const nextLessonNumber = String(lessonNumber + 1);
+    const savedClassName = className;
+    const savedRoom = room;
     form.reset();
-    applyCalculatedTime();
+    document.getElementById("schedule-day").value = savedDay;
+    document.getElementById("schedule-lesson-number").value = nextLessonNumber;
+    document.getElementById("schedule-class").value = savedClassName;
+    document.getElementById("schedule-room").value = savedRoom;
     saveState();
     renderSchedule();
     renderHomeSchedule();
@@ -1794,6 +2356,20 @@ function setupDatabaseSettingsHandlers() {
 }
 
 function setupAppAppearanceHandlers() {
+  const headerThemeToggle = document.getElementById("theme-toggle-button");
+  if (headerThemeToggle) {
+    headerThemeToggle.addEventListener("click", async () => {
+      const nextTheme = getActiveThemeForUi() === "dark" ? "light" : "dark";
+      setUserThemePreference(nextTheme);
+      updateThemeToggleButton();
+      try {
+        await window.teachAxo?.applyUiConfig?.({ iconPath: state.uiConfig.iconPath, theme: nextTheme });
+      } catch (error) {
+        notifyUser(`Не удалось сохранить тему: ${error.message}`, "error");
+      }
+    });
+  }
+
   const themeSelect = document.getElementById("theme-mode-select");
   if (themeSelect) {
     themeSelect.addEventListener("change", async () => {
@@ -1804,6 +2380,7 @@ function setupAppAppearanceHandlers() {
       }
       const theme = normalizeThemePreference(themeSelect.value);
       setUserThemePreference(theme);
+      updateThemeToggleButton();
       try {
         await window.teachAxo?.applyUiConfig?.({ iconPath: state.uiConfig.iconPath, theme });
         notifyUser("Тема оформления сохранена.", "success");
@@ -2037,28 +2614,48 @@ function printHtml(title, contentHtml) {
 
 function setupPrintHandlers() {
   document.getElementById("print-class-list").addEventListener("click", () => {
-    const rows = state.students
-      .map(
-        (s) => `<tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.className)}</td><td>${escapeHtml(s.subject || "-")}</td><td>${escapeHtml(s.contact || "-")}</td></tr>`
-      )
+    const grouped = new Map();
+    state.students.forEach((student) => {
+      const className = String(student.className || "Без класса").trim() || "Без класса";
+      if (!grouped.has(className)) grouped.set(className, []);
+      grouped.get(className).push(student);
+    });
+    const classNames = [...grouped.keys()].sort((a, b) => a.localeCompare(b, "ru"));
+    const blocks = classNames
+      .map((className, index) => {
+        const rows = (grouped.get(className) || [])
+          .sort((a, b) => a.name.localeCompare(b.name, "ru"))
+          .map(
+            (s) =>
+              `<tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.notes || "-")}</td></tr>`
+          )
+          .join("");
+        const pageBreak = index < classNames.length - 1 ? ' style="page-break-after: always;"' : "";
+        return `<section${pageBreak}>
+          <h2>Класс: ${escapeHtml(className)}</h2>
+          <table>
+            <thead><tr><th>ФИО</th><th>Комментарий</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </section>`;
+      })
       .join("");
+    const fallback = '<p>Список учеников пуст.</p>';
     printHtml(
       "TeachAxo - Список учеников",
-      `<table><thead><tr><th>ФИО</th><th>Класс</th><th>Предмет</th><th>Контакты</th></tr></thead><tbody>${rows}</tbody></table>`
+      blocks || fallback
     );
   });
 
   document.getElementById("print-schedule").addEventListener("click", () => {
     const sorted = [...state.schedule].sort((a, b) => {
-      const wDiff = weekCycleSortKey(a.weekCycle) - weekCycleSortKey(b.weekCycle);
-      if (wDiff !== 0) return wDiff;
       const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
       return dayDiff !== 0 ? dayDiff : a.start.localeCompare(b.start);
     });
     const rows = sorted
       .map(
         (s) =>
-          `<tr><td>${escapeHtml(formatWeekCycleLabel(s.weekCycle))}</td><td>${escapeHtml(s.day)}</td><td>${escapeHtml(
+          `<tr><td>${escapeHtml(s.day)}</td><td>${escapeHtml(
             s.start
           )} - ${escapeHtml(s.end)}</td><td>${escapeHtml(s.className)}</td><td>${escapeHtml(s.subject)}</td><td>${escapeHtml(
             s.room || "-"
@@ -2067,7 +2664,7 @@ function setupPrintHandlers() {
       .join("");
     printHtml(
       "TeachAxo - Расписание",
-      `<table><thead><tr><th>Нед.</th><th>День</th><th>Время</th><th>Класс</th><th>Предмет</th><th>Кабинет</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table>`
+      `<table><thead><tr><th>День</th><th>Время</th><th>Класс</th><th>Предмет</th><th>Кабинет</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table>`
     );
   });
 }
@@ -2183,6 +2780,13 @@ async function init() {
   const appVersionNode = document.getElementById("app-version");
   if (appVersionNode) appVersionNode.textContent = versionLabel;
   await loadState();
+  if (!Array.isArray(state.subjects)) state.subjects = [];
+  state.schedule.forEach((entry) => {
+    const subjectName = String(entry?.subject || "").trim();
+    if (!subjectName) return;
+    const exists = state.subjects.some((item) => String(item.name || "").toLowerCase() === subjectName.toLowerCase());
+    if (!exists) state.subjects.push({ id: uid(), name: subjectName });
+  });
   seedAccessData();
   syncAdministratorPermissions();
   state.students.forEach((student) => ensureClassExists(student.className));
@@ -2190,6 +2794,7 @@ async function init() {
   setupNav();
   setupWindowControls();
   setupClassesHandlers();
+  setupSubjectsHandlers();
   setupStudentHandlers();
   setupGradesHandlers();
   setupScheduleHandlers();

@@ -14,11 +14,11 @@
         <form id="login-form" class="ui form">
           <div class="field">
             <label>Логин</label>
-            <input id="login-username" type="text" required placeholder="admin" />
+            <input id="login-username" type="text" required placeholder="Введите логин" />
           </div>
           <div class="field">
             <label>Пароль</label>
-            <input id="login-password" type="password" required placeholder="admin123" />
+            <input id="login-password" type="password" required placeholder="Введите пароль" />
           </div>
           <div class="field">
             <div class="ui checkbox">
@@ -56,6 +56,9 @@
         <div class="app-header-meta">
           <div class="ui basic label">Версия: <span id="app-version">1.0.0</span></div>
           <div class="ui basic label">Пользователь: <span id="current-user-label">-</span></div>
+          <button id="theme-toggle-button" class="ui basic button" type="button">
+            <i class="moon icon"></i> Тёмная тема
+          </button>
           <button id="logout-button" class="ui basic button">
             <i class="sign-out alternate icon"></i> Выйти
           </button>
@@ -69,6 +72,7 @@
             <a class="nav-item active" data-section="home"><i class="home icon"></i>Дашборд</a>
             <a class="nav-item" data-section="classes"><i class="building icon"></i>Классы</a>
             <a class="nav-item" data-section="students"><i class="users icon"></i>Ученики</a>
+            <a class="nav-item" data-section="subjects"><i class="book icon"></i>Предметы</a>
             <a class="nav-item" data-section="grades"><i class="clipboard check icon"></i>Оценки</a>
             <a class="nav-item" data-section="schedule"><i class="calendar alternate icon"></i>Расписание</a>
             <a class="nav-item" data-section="access"><i class="shield alternate icon"></i>Доступ</a>
@@ -238,22 +242,11 @@
                     </div>
                     <div class="field">
                       <label>Класс</label>
-                      <input
-                        type="text"
-                        id="student-class"
-                        required
-                        placeholder="Начните вводить название класса"
-                        list="classes-datalist"
-                      />
-                      <datalist id="classes-datalist"></datalist>
-                    </div>
-                    <div class="field">
-                      <label>Предмет</label>
-                      <input type="text" id="student-subject" placeholder="Математика" />
-                    </div>
-                    <div class="field">
-                      <label>Контакты</label>
-                      <input type="text" id="student-contact" placeholder="+7..., Telegram, email" />
+                      <input type="hidden" id="student-class" required />
+                      <div id="student-class-toggle" class="student-class-toggle" role="radiogroup" aria-label="Выбор класса"></div>
+                      <div id="student-class-toggle-hint" class="student-class-toggle-hint">
+                        Сначала добавьте хотя бы один класс во вкладке «Классы».
+                      </div>
                     </div>
                     <div class="field">
                       <label>Комментарий</label>
@@ -273,24 +266,55 @@
                       </div>
                     </div>
                     <div class="ui fluid icon input students-search-wrap">
-                      <input type="text" id="student-search" placeholder="Поиск по ФИО, классу или предмету..." />
+                      <input type="text" id="student-search" placeholder="Поиск по ФИО или классу..." />
                       <i class="search icon"></i>
                     </div>
-                    <div class="students-table-wrap">
-                      <table class="ui celled striped compact table students-data-table">
-                        <thead>
-                          <tr>
-                            <th>ФИО</th>
-                            <th>Класс</th>
-                            <th>Предмет</th>
-                            <th>Контакты</th>
-                            <th>Действия</th>
-                          </tr>
-                        </thead>
-                        <tbody id="students-table-body"></tbody>
-                      </table>
+                    <div id="students-class-groups" class="students-class-groups">
+                      <div class="students-empty-hint">Пока нет учеников.</div>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+            <div id="students-class-modal" class="students-class-modal hidden" aria-hidden="true">
+              <div class="students-class-modal-backdrop" data-close-students-modal="true"></div>
+              <div class="students-class-modal-dialog">
+                <div class="students-class-modal-head">
+                  <h3 id="students-class-modal-title">Класс</h3>
+                  <button type="button" class="ui icon button" data-close-students-modal="true" aria-label="Закрыть">
+                    <i class="close icon"></i>
+                  </button>
+                </div>
+                <div id="students-class-modal-body" class="students-class-modal-body"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section page-card" data-section-panel="subjects">
+            <div class="ui stackable grid">
+              <div class="six wide column">
+                <h3 class="ui header">Добавить предмет</h3>
+                <form id="subject-form" class="ui form">
+                  <div class="field">
+                    <label>Название предмета</label>
+                    <input type="text" id="subject-name" required placeholder="Алгебра" />
+                  </div>
+                  <button class="ui primary button" type="submit">Добавить предмет</button>
+                </form>
+              </div>
+              <div class="ten wide column">
+                <div class="ui segment">
+                  <h3 class="ui header">Список предметов</h3>
+                  <table class="ui celled compact table">
+                    <thead>
+                      <tr>
+                        <th>Предмет</th>
+                        <th>Уроков в расписании</th>
+                        <th>Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody id="subjects-table-body"></tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -302,14 +326,14 @@
                 <div class="grades-journal-filters">
                   <div class="field">
                     <label for="grades-journal-class">Класс</label>
-                    <select id="grades-journal-class"></select>
+                    <select id="grades-journal-class" class="ui fluid dropdown"></select>
                   </div>
-                  <div class="field grades-journal-add-date-field">
-                    <label for="grades-journal-new-date">Дата урока</label>
-                    <div class="grades-journal-date-row">
-                      <input type="date" id="grades-journal-new-date" />
-                      <button type="button" class="ui button" id="grades-journal-add-date-btn">Добавить дату</button>
-                    </div>
+                  <div class="field">
+                    <label for="grades-journal-date-mode">Даты</label>
+                    <select id="grades-journal-date-mode" class="ui fluid dropdown">
+                      <option value="week">Текущая неделя</option>
+                      <option value="all">Все даты</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -340,8 +364,7 @@
               <div class="schedule-builder-head">
                 <h2 class="ui header">Конструктор расписания</h2>
                 <p>
-                  Расписание ведётся в двухнедельном цикле: для каждого урока указывается неделя I, неделя II или обе. На дашборде
-                  показывается одна неделя (по календарю ISO или вручную в настройках сетки). Время подставляется по номеру урока.
+                  Время каждого урока формируется автоматически по номеру урока и настройкам сетки (начало первого урока, длительность и перемена).
                 </p>
               </div>
 
@@ -360,20 +383,16 @@
                         </div>
                         <div class="field">
                           <label>Длительность</label>
-                          <select id="schedule-lesson-duration" required>
+                          <select id="schedule-lesson-duration" class="ui fluid dropdown" required>
                             <option value="40">40 минут</option>
                             <option value="45">45 минут</option>
                             <option value="90">1,5 часа</option>
                           </select>
                         </div>
-                      </div>
-                      <div class="field">
-                        <label for="schedule-dashboard-week-view">Дашборд: отображаемая неделя цикла</label>
-                        <select id="schedule-dashboard-week-view">
-                          <option value="auto">Автоматически (нечётная ISO-неделя года → I, чётная → II)</option>
-                          <option value="1">Всегда неделя I</option>
-                          <option value="2">Всегда неделя II</option>
-                        </select>
+                        <div class="field">
+                          <label>Перемена</label>
+                          <input type="number" id="schedule-break-duration" min="0" max="60" step="1" required />
+                        </div>
                       </div>
                       <div class="schedule-form-actions">
                         <button class="ui button" type="submit">Сохранить сетку</button>
@@ -384,21 +403,13 @@
                   <div class="schedule-card ui segment">
                     <div class="schedule-card-head">
                       <h3 class="ui header schedule-card-title">Новый урок</h3>
-                      <p class="schedule-card-hint">Выберите неделю цикла (I, II или обе), день и номер урока — время подставится по сетке.</p>
+                      <p class="schedule-card-hint">Выберите день и номер урока — время подставится автоматически по сетке.</p>
                     </div>
                     <form id="schedule-form" class="ui form schedule-inner-form">
                       <div class="schedule-slot-grid">
                         <div class="field">
-                          <label for="schedule-week-cycle">Неделя цикла</label>
-                          <select id="schedule-week-cycle" required>
-                            <option value="1">Неделя I</option>
-                            <option value="2">Неделя II</option>
-                            <option value="both">Обе недели</option>
-                          </select>
-                        </div>
-                        <div class="field">
                           <label>День недели</label>
-                          <select id="schedule-day" required>
+                          <select id="schedule-day" class="ui fluid dropdown" required>
                             <option value="">Выберите день</option>
                             <option value="Понедельник">Понедельник</option>
                             <option value="Вторник">Вторник</option>
@@ -414,24 +425,18 @@
                           <input type="number" id="schedule-lesson-number" min="1" step="1" required placeholder="1" />
                         </div>
                       </div>
-                      <div class="schedule-time-row two fields">
-                        <div class="field">
-                          <label>Начало</label>
-                          <input type="time" id="schedule-start" required />
-                        </div>
-                        <div class="field">
-                          <label>Конец</label>
-                          <input type="time" id="schedule-end" required />
-                        </div>
-                      </div>
                       <div class="schedule-class-subject-grid">
                         <div class="field">
                           <label>Класс</label>
-                          <input type="text" id="schedule-class" required placeholder="Напр. 7Б" />
+                          <select id="schedule-class" class="ui fluid dropdown" required>
+                            <option value="">Выберите класс</option>
+                          </select>
                         </div>
                         <div class="field">
                           <label>Предмет</label>
-                          <input type="text" id="schedule-subject" required placeholder="Напр. Алгебра" />
+                          <select id="schedule-subject" class="ui fluid dropdown" required>
+                            <option value="">Выберите предмет</option>
+                          </select>
                         </div>
                       </div>
                       <div class="field">
@@ -454,7 +459,7 @@
                     <div class="schedule-table-toolbar">
                       <div class="schedule-table-toolbar-text">
                         <h3 class="ui header schedule-card-title">Текущее расписание</h3>
-                        <p class="schedule-card-hint schedule-toolbar-hint">Сортировка: неделя цикла, день недели, время начала.</p>
+                        <p class="schedule-card-hint schedule-toolbar-hint">Сортировка: день недели, время начала.</p>
                       </div>
                       <button id="print-schedule" class="ui button schedule-print-btn" type="button">
                         <i class="print icon"></i> Печать
@@ -464,7 +469,6 @@
                       <table class="ui celled striped compact table schedule-data-table">
                         <thead>
                           <tr>
-                            <th>Нед.</th>
                             <th>День</th>
                             <th>Время</th>
                             <th>Класс</th>
@@ -569,7 +573,7 @@
                         </div>
                         <div class="field">
                           <label>Роль</label>
-                          <select id="user-role" required></select>
+                          <select id="user-role" class="ui fluid dropdown" required></select>
                         </div>
                         <div class="access-form-actions field">
                           <button class="ui primary button" type="submit">Создать пользователя</button>
@@ -592,7 +596,7 @@
                       </table>
                     </div>
                     <div class="ui info message access-hint-message">
-                      Тестовый пользователь: <strong>admin</strong> / <strong>admin123</strong>
+                      Создайте учётные записи с нужными ролями в этом разделе.
                     </div>
                   </div>
                 </div>
@@ -690,7 +694,7 @@
                 <form id="database-settings-form" class="ui form settings-form-block">
                   <div class="field">
                     <label>Тип базы данных</label>
-                    <select id="database-mode" required>
+                    <select id="database-mode" class="ui fluid dropdown" required>
                       <option value="local">Локальная база данных</option>
                       <option value="remote">Удаленная база данных</option>
                     </select>
@@ -751,7 +755,7 @@
                 <div class="ui form settings-form-block">
                   <div class="field">
                     <label>Тема оформления</label>
-                    <select id="theme-mode-select">
+                    <select id="theme-mode-select" class="ui fluid dropdown">
                       <option value="light">Светлая</option>
                       <option value="dark">Тёмная</option>
                       <option value="system">Как в системе</option>
