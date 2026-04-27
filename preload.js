@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld("teachAxo", {
   getUiConfig: () => ipcRenderer.invoke("app:get-ui-config"),
   pickIcon: () => ipcRenderer.invoke("app:pick-icon"),
   applyUiConfig: (config) => ipcRenderer.invoke("app:apply-ui-config", config),
+  getComputerConnections: () => ipcRenderer.invoke("app:get-computer-connections"),
+  getComputerServerConfig: () => ipcRenderer.invoke("app:get-computer-server-config"),
+  sendComputerCommand: (payload) => ipcRenderer.invoke("app:send-computer-command", payload),
   minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
   toggleMaximizeWindow: () => ipcRenderer.invoke("window:toggle-maximize"),
   closeWindow: () => ipcRenderer.invoke("window:close"),
@@ -18,6 +21,9 @@ contextBridge.exposeInMainWorld("teachAxo", {
   },
   onUpdateStatus: (callback) => {
     ipcRenderer.on("app:update-status", (_event, payload) => callback(payload));
+  },
+  onComputerConnectionsChanged: (callback) => {
+    ipcRenderer.on("computers:connections-changed", (_event, payload) => callback(payload));
   }
 });
 

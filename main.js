@@ -3,6 +3,8 @@ const path = require("path");
 const fs = require("node:fs");
 const https = require("node:https");
 const os = require("node:os");
+const net = require("node:net");
+const crypto = require("node:crypto");
 const { spawn } = require("node:child_process");
 const { autoUpdater } = require("electron-updater");
 const AdmZip = require("adm-zip");
@@ -39,6 +41,10 @@ let appUiConfig = {
   iconPath: "",
   theme: "system"
 };
+const COMPUTER_CONTROL_PORT = 46811;
+let computerControlServer = null;
+const connectedComputerSockets = new Map();
+const pendingComputerCommands = new Map();
 
 function normalizeUiTheme(value) {
   const v = String(value || "").toLowerCase();
@@ -136,6 +142,116 @@ function notifyWindows(title, body) {
   } catch (_error) {
     // Ignore notification errors.
   }
+}
+
+function getConnectedComputersSnapshot() {
+  return [...connectedComputerSockets.values()].map((item) => ({
+    computerNumber: item.computerNumber,
+    remoteAddress: item.remoteAddress,
+    hostname: item.hostname || "",
+    platform: item.platform || "",
+    connectedAt: item.connectedAt,
+    lastSeenAt: item.lastSeenAt
+  }));
+}
+
+function broadcastComputerConnections() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send("computers:connections-changed", {
+    items: getConnectedComputersSnapshot()
+  });
+}
+
+function clearPendingCommandsForComputer(computerNumber, reason) {
+  if (!computerNumber) return;
+  for (const [commandId, pending] of pendingComputerCommands.entries()) {
+    if (pending.computerNumber !== computerNumber) continue;
+    clearTimeout(pending.timeoutId);
+    pending.reject(new Error(reason || "Соединение с компьютером потеряно."));
+    pendingComputerCommands.delete(commandId);
+  }
+}
+
+function startComputerControlServer() {
+  if (computerControlServer) return;
+  computerControlServer = net.createServer((socket) => {
+    socket.setEncoding("utf8");
+    let buffer = "";
+    let registeredComputerNumber = "";
+
+    const detachComputer = () => {
+      if (!registeredComputerNumber) return;
+      const current = connectedComputerSockets.get(registeredComputerNumber);
+      if (current && current.socket === socket) {
+        connectedComputerSockets.delete(registeredComputerNumber);
+      }
+      clearPendingCommandsForComputer(registeredComputerNumber, "Компьютер отключился от сервера.");
+      registeredComputerNumber = "";
+      broadcastComputerConnections();
+    };
+
+    socket.on("data", (chunk) => {
+      buffer += chunk;
+      const parts = buffer.split("\n");
+      buffer = parts.pop() || "";
+      for (const raw of parts) {
+        const line = String(raw || "").trim();
+        if (!line) continue;
+        let message = null;
+        try {
+          message = JSON.parse(line);
+        } catch (_error) {
+          continue;
+        }
+        const type = String(message?.type || "");
+        if (type === "register") {
+          const computerNumber = String(message?.computerNumber || "").trim();
+          if (!computerNumber) continue;
+          if (registeredComputerNumber && registeredComputerNumber !== computerNumber) {
+            connectedComputerSockets.delete(registeredComputerNumber);
+          }
+          registeredComputerNumber = computerNumber;
+          connectedComputerSockets.set(computerNumber, {
+            socket,
+            computerNumber,
+            remoteAddress: socket.remoteAddress || "",
+            hostname: String(message?.hostname || ""),
+            platform: String(message?.platform || ""),
+            connectedAt: new Date().toISOString(),
+            lastSeenAt: new Date().toISOString()
+          });
+          socket.write(`${JSON.stringify({ type: "registered", ok: true, computerNumber })}\n`);
+          broadcastComputerConnections();
+          continue;
+        }
+        if (!registeredComputerNumber) continue;
+        const current = connectedComputerSockets.get(registeredComputerNumber);
+        if (current) {
+          current.lastSeenAt = new Date().toISOString();
+        }
+        if (type === "pong") {
+          continue;
+        }
+        if (type === "command_result") {
+          const commandId = String(message?.commandId || "");
+          if (!commandId || !pendingComputerCommands.has(commandId)) continue;
+          const pending = pendingComputerCommands.get(commandId);
+          clearTimeout(pending.timeoutId);
+          pendingComputerCommands.delete(commandId);
+          pending.resolve({
+            ok: Boolean(message?.ok),
+            output: String(message?.output || ""),
+            error: String(message?.error || "")
+          });
+        }
+      }
+    });
+    socket.on("error", () => detachComputer());
+    socket.on("close", () => detachComputer());
+  });
+  computerControlServer.listen(COMPUTER_CONTROL_PORT, "0.0.0.0", () => {
+    console.log(`Computer control server started on port ${COMPUTER_CONTROL_PORT}`);
+  });
 }
 
 function backupBrokenDbRuntimeConfig(userDataPath) {
@@ -827,6 +943,46 @@ function registerDatabaseIpcHandlers() {
     return { ok: true };
   });
   ipcMain.handle("app:get-ui-config", async () => appUiConfig);
+  ipcMain.handle("app:get-computer-server-config", async () => ({ port: COMPUTER_CONTROL_PORT }));
+  ipcMain.handle("app:get-computer-connections", async () => ({ items: getConnectedComputersSnapshot() }));
+  ipcMain.handle("app:send-computer-command", async (_event, payload) => {
+    const computerNumber = String(payload?.computerNumber || "").trim();
+    const action = String(payload?.action || "").trim();
+    const data = payload?.data && typeof payload.data === "object" ? payload.data : {};
+    if (!computerNumber || !action) {
+      return { ok: false, error: "Укажите номер компьютера и команду." };
+    }
+    const target = connectedComputerSockets.get(computerNumber);
+    if (!target?.socket || target.socket.destroyed) {
+      return { ok: false, error: "Компьютер не подключен." };
+    }
+    const commandId = crypto.randomUUID();
+    const packet = {
+      type: "command",
+      commandId,
+      action,
+      data,
+      timestamp: new Date().toISOString()
+    };
+    try {
+      target.socket.write(`${JSON.stringify(packet)}\n`);
+    } catch (error) {
+      return { ok: false, error: `Не удалось отправить команду: ${error.message}` };
+    }
+    const result = await new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        pendingComputerCommands.delete(commandId);
+        reject(new Error("Таймаут ответа от компьютера."));
+      }, 15000);
+      pendingComputerCommands.set(commandId, {
+        computerNumber,
+        timeoutId,
+        resolve,
+        reject
+      });
+    }).catch((error) => ({ ok: false, error: error.message }));
+    return result;
+  });
   ipcMain.handle("app:pick-icon", async () => {
     const result = await dialog.showOpenDialog({
       properties: ["openFile"],
@@ -894,6 +1050,7 @@ app.whenReady().then(async () => {
     notifyWindows("TeachAxo", cachedDbStatus.message);
     startDbHealthMonitor();
     registerDatabaseIpcHandlers();
+    startComputerControlServer();
     nativeTheme.on("updated", () => {
       if (normalizeUiTheme(appUiConfig.theme) !== "system") return;
       broadcastUpdaterAppearance();
@@ -915,6 +1072,11 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
+  if (computerControlServer) {
+    try {
+      computerControlServer.close();
+    } catch (_error) {}
+  }
   if (process.platform !== "darwin") {
     app.quit();
   }

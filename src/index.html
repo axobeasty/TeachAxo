@@ -75,6 +75,7 @@
             <a class="nav-item" data-section="subjects"><i class="book icon"></i>Предметы</a>
             <a class="nav-item" data-section="grades"><i class="clipboard check icon"></i>Оценки</a>
             <a class="nav-item" data-section="schedule"><i class="calendar alternate icon"></i>Расписание</a>
+            <a class="nav-item" data-section="computers"><i class="desktop icon"></i>Компьютеры</a>
             <a class="nav-item" data-section="access"><i class="shield alternate icon"></i>Доступ</a>
             <a class="nav-item" data-section="profile"><i class="user circle icon"></i>Профиль</a>
             <a class="nav-item" data-section="settings"><i class="cog icon"></i>Настройки</a>
@@ -487,6 +488,84 @@
             </div>
           </section>
 
+          <section class="section page-card" data-section-panel="computers">
+            <div class="ui stackable grid">
+              <div class="six wide column">
+                <h2 class="ui header">Компьютеры учеников</h2>
+                <p>Подключайте компьютеры по номеру устройства и управляйте ими из одного раздела.</p>
+                <div class="ui segment">
+                  <h3 class="ui header">Добавить компьютер</h3>
+                  <form id="student-computer-form" class="ui form">
+                    <div class="field">
+                      <label>Номер компьютера</label>
+                      <input type="number" id="student-computer-number" min="1" step="1" required placeholder="1" />
+                    </div>
+                    <div class="field">
+                      <label>Имя компьютера</label>
+                      <input type="text" id="student-computer-name" required placeholder="PC-8A-01" />
+                    </div>
+                    <div class="field">
+                      <label>IP адрес</label>
+                      <input type="text" id="student-computer-ip" placeholder="192.168.0.101" />
+                    </div>
+                    <div class="field">
+                      <label>Примечание</label>
+                      <input type="text" id="student-computer-note" placeholder="Кабинет 304, ряд 2" />
+                    </div>
+                    <button class="ui primary button" type="submit">Добавить компьютер</button>
+                  </form>
+                </div>
+                <div class="ui segment">
+                  <h3 class="ui header">Фильтр</h3>
+                  <div class="field">
+                    <label>Номер компьютера</label>
+                    <input type="number" id="student-computer-number-filter" min="1" step="1" placeholder="Все номера" />
+                  </div>
+                </div>
+              </div>
+              <div class="ten wide column">
+                <div class="ui segment">
+                  <h3 class="ui header">Список устройств</h3>
+                  <div class="ui info message">
+                    Подключите агент-клиент на ПК ученика к серверу TeachAxo. После подключения команды выполняются удаленно.
+                  </div>
+                  <div class="ui tiny message" id="student-computers-connection-hint"></div>
+                  <div class="access-table-wrap">
+                    <table class="ui celled compact table">
+                      <thead>
+                        <tr>
+                          <th>№</th>
+                          <th>Компьютер</th>
+                          <th>IP</th>
+                          <th>Хост</th>
+                          <th>Статус</th>
+                          <th>Действия</th>
+                        </tr>
+                      </thead>
+                      <tbody id="student-computers-table-body"></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="ui segment">
+                  <h3 class="ui header">Журнал команд</h3>
+                  <div class="access-table-wrap">
+                    <table class="ui celled compact table">
+                      <thead>
+                        <tr>
+                          <th>Время</th>
+                          <th>Устройство</th>
+                          <th>Команда</th>
+                          <th>Комментарий</th>
+                        </tr>
+                      </thead>
+                      <tbody id="student-computers-log-body"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section class="section page-card" data-section-panel="access">
             <div class="access-page">
               <div class="access-page-head">
@@ -512,6 +591,7 @@
                             <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_students" /><label>Управление учениками</label></div></div>
                             <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_grades" /><label>Управление оценками</label></div></div>
                             <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_schedule" /><label>Управление расписанием</label></div></div>
+                            <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_computers" /><label>Управление компьютерами учеников</label></div></div>
                             <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="print_data" /><label>Печать данных</label></div></div>
                             <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_roles" /><label>Управление ролями</label></div></div>
                             <div class="field"><div class="ui checkbox"><input type="checkbox" class="role-permission" value="manage_users" /><label>Управление пользователями</label></div></div>

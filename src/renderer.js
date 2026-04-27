@@ -4,6 +4,7 @@ const PERMISSIONS = {
   manage_students: "Управление учениками",
   manage_grades: "Управление оценками",
   manage_schedule: "Управление расписанием",
+  manage_computers: "Управление компьютерами учеников",
   print_data: "Печать данных",
   manage_roles: "Управление ролями",
   manage_users: "Управление пользователями",
@@ -23,6 +24,7 @@ const SECTION_PERMISSIONS = {
   subjects: "manage_schedule",
   grades: "manage_grades",
   schedule: "manage_schedule",
+  computers: "manage_computers",
   profile: "access_profile",
   settings: "access_settings"
 };
@@ -33,6 +35,8 @@ const state = {
   students: [],
   grades: [],
   schedule: [],
+  studentComputers: [],
+  computerCommandLog: [],
   scheduleSettings: {
     firstLessonStart: "08:00",
     lessonDurationMin: 45,
@@ -88,6 +92,9 @@ const state = {
   studentsModalClass: "",
   searchQuery: "",
   classSearchQuery: "",
+  studentComputersNumberFilter: "",
+  connectedComputers: [],
+  computerServerPort: 46811,
   gradesJournalClass: "",
   gradesJournalDateMode: "week",
   gradesJournalExtraDates: []
@@ -155,6 +162,48 @@ function getDashboardScheduleEntries() {
   return getCurrentUserScheduleEntries();
 }
 const VERSION_CHANGELOG = {
+  "1.0.63": {
+    added: [
+      "Реализовано сетевое подключение компьютеров по номеру устройства через агент-клиент и TCP-сервер внутри TeachAxo."
+    ],
+    changed: [
+      "Вкладка «Компьютеры» переведена с привязки к ученику на привязку к номеру компьютера и показывает онлайн-статус подключений."
+    ],
+    removed: []
+  },
+  "1.0.62": {
+    added: [
+      "Добавлена новая вкладка «Компьютеры» для управления ПК учеников: учет устройств, фильтр по классу и журнал команд."
+    ],
+    changed: [
+      "Добавлено право доступа «Управление компьютерами учеников» с интеграцией в роли и навигацию разделов."
+    ],
+    removed: []
+  },
+  "1.0.61": {
+    added: [],
+    changed: [
+      "Стабилизационный релиз: обновлены артефакты сборки и публикации для актуального состояния проекта."
+    ],
+    removed: []
+  },
+  "1.0.60": {
+    added: [
+      "Создана промо-страница проекта для GitHub Pages в стиле интерфейса TeachAxo."
+    ],
+    changed: [
+      "Оценки: возвращен режим отображения дат «Текущая неделя / Все даты» и сохранение выбранного режима."
+    ],
+    removed: []
+  },
+  "1.0.59": {
+    added: [],
+    changed: [
+      "Оценки: исправлено формирование дат текущей недели по общему расписанию класса.",
+      "Улучшен UX журнала оценок: выделение ячеек, навигация стрелками и ввод оценок с клавиатуры/numpad."
+    ],
+    removed: []
+  },
   "1.0.58": {
     added: [],
     changed: [
@@ -712,7 +761,7 @@ function canAccessSection(section) {
 }
 
 function getDefaultSection() {
-  const order = ["home", "classes", "students", "subjects", "grades", "schedule", "access", "profile", "settings"];
+  const order = ["home", "classes", "students", "subjects", "grades", "schedule", "computers", "access", "profile", "settings"];
   for (const id of order) {
     if (canAccessSection(id)) return id;
   }
@@ -735,6 +784,29 @@ function applyLoadedState(parsed) {
   state.students = Array.isArray(parsed.students) ? parsed.students : [];
   state.grades = Array.isArray(parsed.grades) ? parsed.grades : [];
   state.schedule = Array.isArray(parsed.schedule) ? parsed.schedule : [];
+  state.studentComputers = Array.isArray(parsed.studentComputers)
+    ? parsed.studentComputers.map((item) => ({
+        id: item?.id || uid(),
+        computerNumber: String(item?.computerNumber || item?.number || "").trim(),
+        computerName: String(item?.computerName || "").trim(),
+        ipAddress: String(item?.ipAddress || "").trim(),
+        note: String(item?.note || "").trim(),
+        status: item?.status === "offline" ? "offline" : "online"
+      }))
+      .filter((item) => /^\d+$/.test(item.computerNumber))
+    : [];
+  state.computerCommandLog = Array.isArray(parsed.computerCommandLog)
+    ? parsed.computerCommandLog
+        .map((entry) => ({
+          id: entry?.id || uid(),
+          computerId: entry?.computerId || "",
+          computerName: String(entry?.computerName || "").trim(),
+          command: String(entry?.command || "").trim(),
+          note: String(entry?.note || "").trim(),
+          timestamp: String(entry?.timestamp || "").trim()
+        }))
+        .filter((entry) => entry.computerId && entry.computerName && entry.command && entry.timestamp)
+    : [];
   state.scheduleSettings = {
     firstLessonStart: parsed.scheduleSettings?.firstLessonStart || "08:00",
     lessonDurationMin: Number(parsed.scheduleSettings?.lessonDurationMin) || 45,
@@ -767,6 +839,12 @@ function applyLoadedState(parsed) {
     rememberedUserId: hasAuthSettings ? parsed.auth?.rememberedUserId ?? null : parsed.currentUserId ?? null
   };
   state.gradesJournalClass = typeof parsed.gradesJournalClass === "string" ? parsed.gradesJournalClass : "";
+  state.studentComputersNumberFilter =
+    typeof parsed.studentComputersNumberFilter === "string"
+      ? parsed.studentComputersNumberFilter
+      : typeof parsed.studentComputersClassFilter === "string"
+        ? parsed.studentComputersClassFilter
+        : "";
   state.gradesJournalDateMode = parsed.gradesJournalDateMode === "all" ? "all" : "week";
   state.gradesJournalExtraDates = Array.isArray(parsed.gradesJournalExtraDates)
     ? parsed.gradesJournalExtraDates.filter((d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
@@ -799,12 +877,15 @@ function saveState() {
     students: state.students,
     grades: state.grades,
     schedule: state.schedule,
+    studentComputers: state.studentComputers,
+    computerCommandLog: state.computerCommandLog,
     scheduleSettings: state.scheduleSettings,
     databaseConfig: state.databaseConfig,
     roles: state.roles,
     users: state.users,
     currentUserId: state.currentUserId,
     auth: state.auth,
+    studentComputersNumberFilter: state.studentComputersNumberFilter,
     gradesJournalClass: state.gradesJournalClass,
     gradesJournalDateMode: state.gradesJournalDateMode,
     gradesJournalExtraDates: state.gradesJournalExtraDates
@@ -1596,6 +1677,92 @@ function renderUsers() {
     .join("");
 }
 
+function getComputerActionButtons(computerId) {
+  const actions = [
+    { key: "shutdown", label: "Выключить" },
+    { key: "restart", label: "Перезагрузка" },
+    { key: "remote_control", label: "Удаленное управление" },
+    { key: "lock", label: "Блокировка" },
+    { key: "unlock", label: "Разблокировка" },
+    { key: "start_app", label: "Запуск приложения" },
+    { key: "close_app", label: "Закрытие приложения" },
+    { key: "screen_view", label: "Просмотр экрана" },
+    { key: "deny_app_launch", label: "Запрет запуска приложений" },
+    { key: "group_policy", label: "Редактор групповых политик" }
+  ];
+  return actions
+    .map(
+      (action) =>
+        `<button type="button" class="ui mini button" data-computer-action="${action.key}" data-computer-id="${computerId}">${action.label}</button>`
+    )
+    .join("");
+}
+
+function renderComputers() {
+  const numberFilterInput = document.getElementById("student-computer-number-filter");
+  const tbody = document.getElementById("student-computers-table-body");
+  const logBody = document.getElementById("student-computers-log-body");
+  if (!numberFilterInput || !tbody || !logBody) return;
+  const selectedNumber = String(state.studentComputersNumberFilter || "").trim();
+  numberFilterInput.value = selectedNumber;
+
+  const connectedByNumber = new Map(
+    (state.connectedComputers || []).map((item) => [String(item.computerNumber || "").trim(), item])
+  );
+  const visibleComputers = state.studentComputers.filter((computer) => {
+    if (!selectedNumber) return true;
+    return String(computer.computerNumber || "") === selectedNumber;
+  });
+
+  tbody.innerHTML = visibleComputers
+    .map((computer) => {
+      const connection = connectedByNumber.get(String(computer.computerNumber || ""));
+      const isOnline = Boolean(connection);
+      const statusClass = isOnline ? "green" : "grey";
+      const statusText = isOnline ? "Подключен" : "Не подключен";
+      return `<tr>
+        <td>${escapeHtml(computer.computerNumber || "-")}</td>
+        <td>${escapeHtml(computer.computerName || "-")}</td>
+        <td>${escapeHtml(connection?.remoteAddress || computer.ipAddress || "-")}</td>
+        <td>${escapeHtml(connection?.hostname || "-")}</td>
+        <td><span class="ui mini ${statusClass} label">${statusText}</span></td>
+        <td>
+          <div class="access-row-actions">
+            ${getComputerActionButtons(computer.id)}
+            <button type="button" class="ui mini red button" data-delete-computer="${computer.id}">Удалить</button>
+          </div>
+        </td>
+      </tr>`;
+    })
+    .join("");
+  if (!tbody.innerHTML.trim()) {
+    tbody.innerHTML = '<tr><td colspan="6" class="muted-cell">Компьютеры не добавлены.</td></tr>';
+  }
+
+  logBody.innerHTML = [...state.computerCommandLog]
+    .reverse()
+    .slice(0, 80)
+    .map((entry) => {
+      const dt = new Date(entry.timestamp);
+      const timeText = Number.isNaN(dt.getTime()) ? entry.timestamp : dt.toLocaleString("ru-RU");
+      return `<tr>
+        <td>${escapeHtml(timeText)}</td>
+        <td>${escapeHtml(entry.computerName || "-")}</td>
+        <td>${escapeHtml(entry.command || "-")}</td>
+        <td>${escapeHtml(entry.note || "-")}</td>
+      </tr>`;
+    })
+    .join("");
+  if (!logBody.innerHTML.trim()) {
+    logBody.innerHTML = '<tr><td colspan="4" class="muted-cell">Журнал пока пуст.</td></tr>';
+  }
+
+  const hint = document.getElementById("student-computers-connection-hint");
+  if (hint) {
+    hint.textContent = `Порт подключения агентов: ${state.computerServerPort}`;
+  }
+}
+
 function renderStatusBar() {
   const dbProvider = String(state.storageInfo.provider || "sqlite").toLowerCase();
   const dbPath = state.storageInfo.sqlitePath || "-";
@@ -1672,6 +1839,7 @@ function renderAll() {
   renderStudents();
   renderGradesJournal();
   renderSchedule();
+  renderComputers();
   renderHomeSchedule();
   renderHomeDashboard();
   renderProfilePage();
@@ -2128,6 +2296,129 @@ function setupScheduleHandlers() {
     renderHomeSchedule();
     renderHomeDashboard();
   });
+}
+
+function setupComputersHandlers() {
+  const form = document.getElementById("student-computer-form");
+  const numberFilterInput = document.getElementById("student-computer-number-filter");
+  const tableBody = document.getElementById("student-computers-table-body");
+  if (!form || !numberFilterInput || !tableBody) return;
+
+  const syncConnections = async () => {
+    try {
+      const response = await window.teachAxo?.getComputerConnections?.();
+      state.connectedComputers = Array.isArray(response?.items) ? response.items : [];
+      renderComputers();
+    } catch (_error) {}
+  };
+  const syncServerConfig = async () => {
+    try {
+      const response = await window.teachAxo?.getComputerServerConfig?.();
+      const port = Number(response?.port);
+      if (Number.isInteger(port) && port > 0) state.computerServerPort = port;
+      renderComputers();
+    } catch (_error) {}
+  };
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!requirePermission("manage_computers")) return;
+    const computerNumberRaw = document.getElementById("student-computer-number").value.trim();
+    const computerName = document.getElementById("student-computer-name").value.trim();
+    const ipAddress = document.getElementById("student-computer-ip").value.trim();
+    const note = document.getElementById("student-computer-note").value.trim();
+    if (!/^\d+$/.test(computerNumberRaw) || Number(computerNumberRaw) < 1 || !computerName) {
+      notifyUser("Укажите корректный номер компьютера и имя.", "warning");
+      return;
+    }
+    const duplicateNumber = state.studentComputers.some(
+      (item) => String(item.computerNumber || "") === computerNumberRaw
+    );
+    if (duplicateNumber) {
+      notifyUser("Компьютер с таким номером уже существует.", "warning");
+      return;
+    }
+    state.studentComputers.push({
+      id: uid(),
+      computerNumber: computerNumberRaw,
+      computerName,
+      ipAddress,
+      note,
+      status: "online"
+    });
+    form.reset();
+    saveState();
+    renderComputers();
+    notifyUser("Компьютер добавлен.", "success");
+  });
+
+  numberFilterInput.addEventListener("input", () => {
+    state.studentComputersNumberFilter = numberFilterInput.value.trim();
+    saveState();
+    renderComputers();
+  });
+
+  tableBody.addEventListener("click", async (event) => {
+    if (!requirePermission("manage_computers")) return;
+    const target = event.target;
+    const computerId = target.dataset.computerId || target.dataset.deleteComputer;
+    if (!computerId) return;
+    const computer = state.studentComputers.find((item) => item.id === computerId);
+    if (!computer) return;
+
+    const deleteId = target.dataset.deleteComputer;
+    if (deleteId) {
+      state.studentComputers = state.studentComputers.filter((item) => item.id !== deleteId);
+      state.computerCommandLog = state.computerCommandLog.filter((entry) => entry.computerId !== deleteId);
+      saveState();
+      renderComputers();
+      notifyUser("Компьютер удален.", "success");
+      return;
+    }
+
+    const actionKey = target.dataset.computerAction;
+    if (!actionKey) return;
+    const actionLabels = {
+      shutdown: "Выключение",
+      restart: "Перезагрузка",
+      remote_control: "Удаленное управление",
+      lock: "Блокировка",
+      unlock: "Разблокировка",
+      start_app: "Запуск приложения",
+      close_app: "Закрытие приложения",
+      screen_view: "Просмотр экрана",
+      deny_app_launch: "Запрет запуска приложений",
+      group_policy: "Редактор групповых политик"
+    };
+    const response = await window.teachAxo?.sendComputerCommand?.({
+      computerNumber: computer.computerNumber,
+      action: actionKey,
+      data: {}
+    });
+    const ok = Boolean(response?.ok);
+    state.computerCommandLog.push({
+      id: uid(),
+      computerId,
+      computerName: computer.computerName,
+      command: actionLabels[actionKey] || actionKey,
+      note: ok ? String(response?.output || "Команда выполнена.") : String(response?.error || "Команда не выполнена."),
+      timestamp: new Date().toISOString()
+    });
+    saveState();
+    renderComputers();
+    notifyUser(
+      ok
+        ? `Команда «${actionLabels[actionKey] || actionKey}» выполнена.`
+        : `Команда «${actionLabels[actionKey] || actionKey}» не выполнена: ${response?.error || "нет ответа"}.`,
+      ok ? "success" : "warning"
+    );
+  });
+  window.teachAxo?.onComputerConnectionsChanged?.((payload) => {
+    state.connectedComputers = Array.isArray(payload?.items) ? payload.items : [];
+    renderComputers();
+  });
+  syncServerConfig();
+  syncConnections();
 }
 
 function setupAccessHandlers() {
@@ -2798,6 +3089,7 @@ async function init() {
   setupStudentHandlers();
   setupGradesHandlers();
   setupScheduleHandlers();
+  setupComputersHandlers();
   setupAccessHandlers();
   setupProfileHandlers();
   setupDatabaseSettingsHandlers();
