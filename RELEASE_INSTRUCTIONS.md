@@ -1,8 +1,10 @@
 # Инструкция по сборке и релизу обновлений
 
-Ниже команды для полного цикла.
+Ниже команды для полного цикла публикации.
 
-## 1) Скомпилировать `.exe`
+## Релиз основного приложения TeachAxo
+
+### 1) Скомпилировать `.exe`
 
 ```powershell
 corepack yarn dist
@@ -12,7 +14,7 @@ corepack yarn dist
 - `dist/TeachAxo Setup <version>.exe`
 - `dist/latest.yml`
 
-## 2) Подготовить обновление к релизу (создать архив)
+### 2) Подготовить обновление к релизу (создать архив)
 
 ```powershell
 corepack yarn update:archive
@@ -23,7 +25,9 @@ corepack yarn update:archive
 
 В архив кладется установщик текущей версии.
 
-## 3) Сделать релиз и загрузить архив
+### 3) Создать релиз для TeachAxo
+
+Тег для основной программы: `v<version>`
 
 ```powershell
 & "C:\Program Files\GitHub CLI\gh.exe" release create "v<version>" `
@@ -33,19 +37,40 @@ corepack yarn update:archive
   --notes "Release <version>"
 ```
 
-Пример для `1.0.8`:
+## Релиз агента TeachAxo Agent
+
+### 1) Скомпилировать агент `.exe`
 
 ```powershell
-& "C:\Program Files\GitHub CLI\gh.exe" release create v1.0.8 `
-  "dist/TeachAxo-Update-1.0.8.zip" `
-  "dist/latest.yml" `
-  --title "TeachAxo 1.0.8" `
-  --notes "Release 1.0.8"
+corepack yarn agent:dist
 ```
 
-## Как теперь работает обновление в приложении
+Результат:
+- `dist-agent/TeachAxo Agent Setup <version>.exe`
+- `dist-agent/latest.yml`
 
-1. Приложение проверяет новую версию.
-2. Скачивает ZIP-архив `TeachAxo-Update-<version>.zip` из GitHub Release.
+### 2) Создать отдельный релиз для агента
+
+Тег для агента: `agent-v<version>`
+
+```powershell
+& "C:\Program Files\GitHub CLI\gh.exe" release create "agent-v<version>" `
+  "dist-agent/TeachAxo Agent Setup <version>.exe" `
+  "dist-agent/latest.yml" `
+  --title "TeachAxo Agent <version>" `
+  --notes "Agent release <version>"
+```
+
+## Как работает автообновление
+
+### Основное приложение
+1. TeachAxo проверяет новую версию.
+2. Скачивает ZIP-архив `TeachAxo-Update-<version>.zip` из релиза `v<version>`.
 3. Распаковывает архив во временную директорию.
-4. Находит `.exe` внутри архива и запускает установку в тихом режиме (`/S`).
+4. Находит `.exe` внутри архива и запускает установку.
+
+### Агент
+1. Агент проверяет GitHub релизы с тегами `agent-v*`.
+2. Находит последний релиз агента и сравнивает версию со своей.
+3. Скачивает `TeachAxo Agent Setup <version>.exe`.
+4. Запускает установщик и перезапускается уже в новой версии.

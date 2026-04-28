@@ -25,6 +25,7 @@ const SECTION_PERMISSIONS = {
   grades: "manage_grades",
   schedule: "manage_schedule",
   computers: "manage_computers",
+  "shared-folders": "manage_computers",
   profile: "access_profile",
   settings: "access_settings"
 };
@@ -90,6 +91,7 @@ const state = {
     theme: "system"
   },
   studentsModalClass: "",
+  studentComputersModalId: "",
   searchQuery: "",
   classSearchQuery: "",
   studentComputersNumberFilter: "",
@@ -97,10 +99,15 @@ const state = {
   computerServerPort: 46811,
   gradesJournalClass: "",
   gradesJournalDateMode: "week",
-  gradesJournalExtraDates: []
+  gradesJournalExtraDates: [],
+  sharedFoldersShowAll: false
 };
 
 const THEME_PREFS = ["light", "dark", "system"];
+const COMPUTERS_BACKUP_KEY = "teachaxo.studentComputers.backup.v1";
+let sharedFolderSyncTimer = null;
+let lastSharedFolderHash = "";
+const sharedFolderSyncedByComputer = new Map();
 
 function normalizeThemePreference(value) {
   const v = String(value || "").toLowerCase();
@@ -162,6 +169,72 @@ function getDashboardScheduleEntries() {
   return getCurrentUserScheduleEntries();
 }
 const VERSION_CHANGELOG = {
+  "1.0.72": {
+    added: [
+      "Раздел «Компьютеры» переработан: таблица заменена на карточки в grid с цветовой индикацией статуса подключения."
+    ],
+    changed: [
+      "Добавлено модальное окно компьютера с полным описанием и полным набором команд удаленного управления."
+    ],
+    removed: []
+  },
+  "1.0.70": {
+    added: [
+      "Для агента добавлены защищенные настройки с первичной установкой пароля и отдельным релиз-каналом автообновления."
+    ],
+    changed: [
+      "Оптимизирована задержка удаленного просмотра/управления: ускорена передача кадров и улучшена индикация статуса в трее агента."
+    ],
+    removed: []
+  },
+  "1.0.69": {
+    added: [],
+    changed: [
+      "Исправлена стабильность удаленного просмотра/управления: увеличен буфер передачи кадров и уточнены сообщения диагностики."
+    ],
+    removed: []
+  },
+  "1.0.68": {
+    added: [],
+    changed: [
+      "Исправлена передача кадров экрана: улучшена диагностика ошибок в окне просмотра/управления при недоступном кадре."
+    ],
+    removed: []
+  },
+  "1.0.67": {
+    added: [],
+    changed: [
+      "Повышена надежность хранения раздела «Компьютеры»: добавлен локальный резервный бэкап и автовосстановление после перезапуска."
+    ],
+    removed: []
+  },
+  "1.0.66": {
+    added: [
+      "Удаленное управление и просмотр экрана переведены в отдельные окна с live-потоком экрана подключенного ПК."
+    ],
+    changed: [
+      "Команда «Удаленное управление» теперь передает клики и клавиши с компьютера хоста на подключенный компьютер."
+    ],
+    removed: []
+  },
+  "1.0.65": {
+    added: [
+      "Во вкладке «Компьютеры» добавлена команда «Отключить от управления» с подтверждением действия."
+    ],
+    changed: [
+      "student-agent: реализовано принудительное отключение управления — удаление автозапуска, очистка конфига и завершение агента."
+    ],
+    removed: []
+  },
+  "1.0.64": {
+    added: [
+      "Во вкладке «Компьютеры» добавлена команда «Проверить подключение» для оперативной диагностики связи с агентом."
+    ],
+    changed: [
+      "Агент компьютера теперь возвращает подробный ответ о хосте и платформе при проверке подключения."
+    ],
+    removed: []
+  },
   "1.0.63": {
     added: [
       "Реализовано сетевое подключение компьютеров по номеру устройства через агент-клиент и TCP-сервер внутри TeachAxo."
@@ -761,7 +834,7 @@ function canAccessSection(section) {
 }
 
 function getDefaultSection() {
-  const order = ["home", "classes", "students", "subjects", "grades", "schedule", "computers", "access", "profile", "settings"];
+  const order = ["home", "classes", "students", "subjects", "grades", "schedule", "computers", "shared-folders", "access", "profile", "settings"];
   for (const id of order) {
     if (canAccessSection(id)) return id;
   }
@@ -849,6 +922,7 @@ function applyLoadedState(parsed) {
   state.gradesJournalExtraDates = Array.isArray(parsed.gradesJournalExtraDates)
     ? parsed.gradesJournalExtraDates.filter((d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
     : [];
+  state.sharedFoldersShowAll = Boolean(parsed.sharedFoldersShowAll);
 }
 
 async function loadState() {
@@ -860,6 +934,19 @@ async function loadState() {
     const dbState = await window.teachAxoDb.getState();
     if (dbState) {
       applyLoadedState(dbState);
+    } else {
+      try {
+        const backupRaw = localStorage.getItem(COMPUTERS_BACKUP_KEY);
+        if (backupRaw) {
+          const backup = JSON.parse(backupRaw);
+          if (backup && typeof backup === "object") {
+            state.studentComputers = Array.isArray(backup.studentComputers) ? backup.studentComputers : [];
+            state.computerCommandLog = Array.isArray(backup.computerCommandLog) ? backup.computerCommandLog : [];
+          }
+        }
+      } catch (_backupError) {
+        // Ignore corrupted local backup; DB remains primary source.
+      }
     }
 
     const info = await window.teachAxoDb.getInfo();
@@ -888,15 +975,28 @@ function saveState() {
     studentComputersNumberFilter: state.studentComputersNumberFilter,
     gradesJournalClass: state.gradesJournalClass,
     gradesJournalDateMode: state.gradesJournalDateMode,
-    gradesJournalExtraDates: state.gradesJournalExtraDates
+    gradesJournalExtraDates: state.gradesJournalExtraDates,
+    sharedFoldersShowAll: state.sharedFoldersShowAll
   };
   if (!window.teachAxoDb?.saveState) {
     console.error("SQLite API недоступен. Сохранение отменено.");
     return;
   }
+  try {
+    localStorage.setItem(
+      COMPUTERS_BACKUP_KEY,
+      JSON.stringify({
+        studentComputers: state.studentComputers,
+        computerCommandLog: state.computerCommandLog
+      })
+    );
+  } catch (_backupError) {
+    // Ignore localStorage limits/errors.
+  }
   window.teachAxoDb.saveState(snapshot).catch((error) => {
     console.error("Не удалось сохранить данные в SQLite:", error);
   });
+  scheduleSharedFolderSync();
 }
 
 function seedAccessData() {
@@ -1677,8 +1777,15 @@ function renderUsers() {
     .join("");
 }
 
-function getComputerActionButtons(computerId) {
-  const actions = [
+function getComputerActionButtons(computerId, mode = "full") {
+  const compact = [
+    { key: "shutdown", label: "Выключить" },
+    { key: "restart", label: "Перезагрузить" },
+    { key: "lock", label: "Заблокировать" }
+  ];
+  const full = [
+    { key: "check_connection", label: "Проверить подключение" },
+    { key: "disable_management", label: "Отключить от управления" },
     { key: "shutdown", label: "Выключить" },
     { key: "restart", label: "Перезагрузка" },
     { key: "remote_control", label: "Удаленное управление" },
@@ -1690,6 +1797,7 @@ function getComputerActionButtons(computerId) {
     { key: "deny_app_launch", label: "Запрет запуска приложений" },
     { key: "group_policy", label: "Редактор групповых политик" }
   ];
+  const actions = mode === "compact" ? compact : full;
   return actions
     .map(
       (action) =>
@@ -1698,11 +1806,263 @@ function getComputerActionButtons(computerId) {
     .join("");
 }
 
+function buildSharedFolderTree() {
+  const classMap = new Map();
+  state.classes
+    .map((item) => String(item?.name || "").trim())
+    .filter(Boolean)
+    .forEach((name) => {
+      if (!classMap.has(name)) classMap.set(name, new Set());
+    });
+  state.students.forEach((student) => {
+    const className = String(student?.className || "").trim();
+    const studentName = String(student?.name || "").trim();
+    if (!className || !studentName) return;
+    if (!classMap.has(className)) classMap.set(className, new Set());
+    classMap.get(className).add(studentName);
+  });
+  return [...classMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], "ru"))
+    .map(([className, studentsSet]) => ({
+      className,
+      students: [...studentsSet].sort((a, b) => a.localeCompare(b, "ru"))
+    }));
+}
+
+function buildComputerActionPayload(actionKey) {
+  if (actionKey === "start_app") {
+    const appPath = window.prompt("Укажите полный путь к приложению для запуска:", "C:\\Windows\\System32\\notepad.exe");
+    if (appPath === null) return null;
+    const trimmed = appPath.trim();
+    if (!trimmed) return null;
+    return { path: trimmed };
+  }
+  if (actionKey === "close_app") {
+    const processName = window.prompt("Укажите имя процесса для закрытия:", "notepad.exe");
+    if (processName === null) return null;
+    const trimmed = processName.trim();
+    if (!trimmed) return null;
+    return { processName: trimmed };
+  }
+  if (actionKey === "deny_app_launch") {
+    const processName = window.prompt("Укажите имя процесса для блокировки запуска:", "notepad.exe");
+    if (processName === null) return null;
+    const trimmed = processName.trim();
+    if (!trimmed) return null;
+    return { processName: trimmed };
+  }
+  return {};
+}
+
+async function syncSharedFolderToConnectedComputers() {
+  const connectedList = Array.isArray(state.connectedComputers) ? state.connectedComputers : [];
+  if (!connectedList.length) return;
+  const schedule = Array.isArray(state.schedule)
+    ? state.schedule
+        .map((entry) => ({
+          day: String(entry?.day || "").trim(),
+          start: String(entry?.start || "").trim(),
+          end: String(entry?.end || "").trim(),
+          className: String(entry?.className || "").trim()
+        }))
+        .filter((entry) => entry.day && entry.start && entry.end && entry.className)
+    : [];
+  const payload = {
+    classes: buildSharedFolderTree(),
+    schedule,
+    showAll: Boolean(state.sharedFoldersShowAll),
+    generatedAt: new Date().toISOString()
+  };
+  const treeHash = JSON.stringify({
+    classes: payload.classes,
+    schedule: payload.schedule,
+    showAll: payload.showAll
+  });
+  if (treeHash !== lastSharedFolderHash) {
+    sharedFolderSyncedByComputer.clear();
+    lastSharedFolderHash = treeHash;
+  }
+  const connectedSet = new Set();
+  for (const item of connectedList) {
+    const computerNumber = String(item?.computerNumber || "").trim();
+    if (!computerNumber) continue;
+    connectedSet.add(computerNumber);
+    if (sharedFolderSyncedByComputer.get(computerNumber) === treeHash) continue;
+    try {
+      const response = await window.teachAxo?.sendComputerCommand?.({
+        computerNumber,
+        action: "setup_shared_folder",
+        data: payload
+      });
+      if (response?.ok) sharedFolderSyncedByComputer.set(computerNumber, treeHash);
+    } catch (_error) {}
+  }
+  for (const cachedComputerNumber of [...sharedFolderSyncedByComputer.keys()]) {
+    if (!connectedSet.has(cachedComputerNumber)) {
+      sharedFolderSyncedByComputer.delete(cachedComputerNumber);
+    }
+  }
+}
+
+function scheduleSharedFolderSync() {
+  if (sharedFolderSyncTimer) clearTimeout(sharedFolderSyncTimer);
+  sharedFolderSyncTimer = setTimeout(() => {
+    sharedFolderSyncTimer = null;
+    syncSharedFolderToConnectedComputers().catch(() => {});
+  }, 900);
+}
+
+function renderSharedFoldersPage() {
+  const toggle = document.getElementById("shared-folders-show-all");
+  const status = document.getElementById("shared-folders-status");
+  if (!toggle || !status) return;
+  toggle.checked = Boolean(state.sharedFoldersShowAll);
+  status.textContent = state.sharedFoldersShowAll
+    ? "Включен режим отображения всех папок классов."
+    : "Папки фильтруются по текущему уроку из расписания.";
+}
+
+async function requestComputerFrame(computerNumber) {
+  const desired = {
+    format: "jpeg",
+    quality: 45,
+    scale: 0.5
+  };
+  const response = await window.teachAxo?.sendComputerCommand?.({
+    computerNumber,
+    action: "screen_frame",
+    data: desired
+  });
+  if (!response?.ok) {
+    const message = String(response?.error || "Неизвестная ошибка кадра.");
+    throw new Error(message);
+  }
+  const frame = String(response.output || "");
+  if (!frame) {
+    throw new Error("Пустой ответ кадра от агента.");
+  }
+  return frame;
+}
+
+async function sendComputerRemoteInput(computerNumber, payload) {
+  return window.teachAxo?.sendComputerCommand?.({
+    computerNumber,
+    action: "remote_input",
+    data: payload || {}
+  });
+}
+
+function openComputerStreamWindow(computer, mode) {
+  const titlePrefix = mode === "control" ? "Удаленное управление" : "Просмотр экрана";
+  const win = window.open("", `_blank`, "width=1200,height=780");
+  if (!win) {
+    notifyUser("Браузер заблокировал всплывающее окно.", "warning");
+    return;
+  }
+  const canControl = mode === "control";
+  const computerLabel = `${computer.computerName || "Компьютер"} №${computer.computerNumber || "-"}`;
+  win.document.write(`<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>${titlePrefix} - ${computerLabel}</title>
+<style>
+  body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:#111827;color:#e5e7eb}
+  .bar{display:flex;gap:8px;align-items:center;padding:10px 12px;background:#0f172a;position:sticky;top:0}
+  .bar .title{font-weight:600}
+  .bar .status{font-size:12px;opacity:.85}
+  .canvas-wrap{display:flex;justify-content:center;align-items:flex-start;padding:12px}
+  img{max-width:100%;height:auto;border-radius:8px;box-shadow:0 0 0 1px #334155;${canControl ? "cursor:crosshair;" : ""}}
+  button{background:#2563eb;border:none;color:#fff;padding:6px 10px;border-radius:6px;cursor:pointer}
+</style></head>
+<body>
+  <div class="bar">
+    <div class="title">${titlePrefix}: ${computerLabel}</div>
+    <button id="refresh-btn" type="button">Обновить кадр</button>
+    <div class="status" id="stream-status">Подключение...</div>
+  </div>
+  <div class="canvas-wrap"><img id="screen-frame" alt="Экран компьютера" /></div>
+<script>
+  const statusNode = document.getElementById("stream-status");
+  const imageNode = document.getElementById("screen-frame");
+  const refreshBtn = document.getElementById("refresh-btn");
+  const computerNumber = ${JSON.stringify(String(computer.computerNumber || ""))};
+  let busy = false;
+  let timer = null;
+  const fetchFrame = async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      const frame = await window.opener.__teachaxoRemote.fetchFrame(computerNumber);
+      if (frame) {
+        imageNode.src = "data:image/png;base64," + frame;
+        statusNode.textContent = "Кадр обновлен: " + new Date().toLocaleTimeString("ru-RU");
+      } else {
+        statusNode.textContent = "Нет данных кадра (компьютер офлайн или ошибка).";
+      }
+    } catch (error) {
+      statusNode.textContent = "Ошибка получения кадра: " + (error?.message || error);
+    } finally {
+      busy = false;
+    }
+  };
+  refreshBtn.addEventListener("click", fetchFrame);
+  timer = setInterval(fetchFrame, 300);
+  window.addEventListener("beforeunload", () => { if (timer) clearInterval(timer); });
+  fetchFrame();
+  ${canControl ? `
+  imageNode.addEventListener("click", async (event) => {
+    const rect = imageNode.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+    await window.opener.__teachaxoRemote.sendInput(computerNumber, { type: "click", x, y });
+  });
+  window.addEventListener("keydown", async (event) => {
+    if (event.key === "F5") return;
+    await window.opener.__teachaxoRemote.sendInput(computerNumber, { type: "key", key: event.key });
+  });
+  ` : ""}
+</script></body></html>`);
+  win.document.close();
+}
+
+function renderComputerModal() {
+  const modal = document.getElementById("student-computer-modal");
+  const title = document.getElementById("student-computer-modal-title");
+  const body = document.getElementById("student-computer-modal-body");
+  if (!modal || !title || !body) return;
+  const computer = state.studentComputers.find((item) => item.id === state.studentComputersModalId);
+  if (!computer) {
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+    return;
+  }
+  const connection = (state.connectedComputers || []).find(
+    (item) => String(item?.computerNumber || "") === String(computer.computerNumber || "")
+  );
+  const status = connection ? "Подключен" : "Не подключен";
+  title.textContent = `${computer.computerName || "Компьютер"} №${computer.computerNumber || "-"}`;
+  body.innerHTML = `
+    <div class="student-computer-modal-meta">
+      <div class="label">Название</div><div>${escapeHtml(computer.computerName || "-")}</div>
+      <div class="label">Номер</div><div>${escapeHtml(computer.computerNumber || "-")}</div>
+      <div class="label">IP адрес</div><div>${escapeHtml(connection?.remoteAddress || computer.ipAddress || "-")}</div>
+      <div class="label">Хост</div><div>${escapeHtml(connection?.hostname || "-")}</div>
+      <div class="label">Статус</div><div>${escapeHtml(status)}</div>
+      <div class="label">Примечание</div><div>${escapeHtml(computer.note || "-")}</div>
+    </div>
+    <div class="student-computer-modal-controls">
+      ${getComputerActionButtons(computer.id, "full")}
+      <button type="button" class="ui mini red button" data-delete-computer="${computer.id}">Удалить</button>
+    </div>
+  `;
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+}
+
 function renderComputers() {
   const numberFilterInput = document.getElementById("student-computer-number-filter");
-  const tbody = document.getElementById("student-computers-table-body");
+  const cardsWrap = document.getElementById("student-computers-cards");
   const logBody = document.getElementById("student-computers-log-body");
-  if (!numberFilterInput || !tbody || !logBody) return;
+  if (!numberFilterInput || !cardsWrap || !logBody) return;
   const selectedNumber = String(state.studentComputersNumberFilter || "").trim();
   numberFilterInput.value = selectedNumber;
 
@@ -1714,29 +2074,22 @@ function renderComputers() {
     return String(computer.computerNumber || "") === selectedNumber;
   });
 
-  tbody.innerHTML = visibleComputers
+  cardsWrap.innerHTML = visibleComputers
     .map((computer) => {
       const connection = connectedByNumber.get(String(computer.computerNumber || ""));
-      const isOnline = Boolean(connection);
-      const statusClass = isOnline ? "green" : "grey";
-      const statusText = isOnline ? "Подключен" : "Не подключен";
-      return `<tr>
-        <td>${escapeHtml(computer.computerNumber || "-")}</td>
-        <td>${escapeHtml(computer.computerName || "-")}</td>
-        <td>${escapeHtml(connection?.remoteAddress || computer.ipAddress || "-")}</td>
-        <td>${escapeHtml(connection?.hostname || "-")}</td>
-        <td><span class="ui mini ${statusClass} label">${statusText}</span></td>
-        <td>
-          <div class="access-row-actions">
-            ${getComputerActionButtons(computer.id)}
-            <button type="button" class="ui mini red button" data-delete-computer="${computer.id}">Удалить</button>
-          </div>
-        </td>
-      </tr>`;
+      const connected = Boolean(connection);
+      return `<article class="student-computer-card ${connected ? "connected" : "disconnected"}" data-open-computer-modal="${computer.id}">
+        <div class="student-computer-card-title">${escapeHtml(computer.computerName || `PC-${computer.computerNumber || "-"}`)}</div>
+        <div class="student-computer-card-address">${escapeHtml(connection?.remoteAddress || computer.ipAddress || "-")}</div>
+        <div class="student-computer-card-status">${connected ? "Подключен" : "Не подключен"}</div>
+        <div class="student-computer-card-controls">
+          ${getComputerActionButtons(computer.id, "compact")}
+        </div>
+      </article>`;
     })
     .join("");
-  if (!tbody.innerHTML.trim()) {
-    tbody.innerHTML = '<tr><td colspan="6" class="muted-cell">Компьютеры не добавлены.</td></tr>';
+  if (!cardsWrap.innerHTML.trim()) {
+    cardsWrap.innerHTML = '<div class="students-empty-hint">Компьютеры не добавлены.</div>';
   }
 
   logBody.innerHTML = [...state.computerCommandLog]
@@ -1761,6 +2114,44 @@ function renderComputers() {
   if (hint) {
     hint.textContent = `Порт подключения агентов: ${state.computerServerPort}`;
   }
+  renderComputerModal();
+}
+
+function syncDiscoveredComputersIntoState() {
+  if (!Array.isArray(state.connectedComputers) || state.connectedComputers.length === 0) return false;
+  let changed = false;
+  for (const item of state.connectedComputers) {
+    const number = String(item?.computerNumber || "").trim();
+    if (!/^\d+$/.test(number)) continue;
+    const existing = state.studentComputers.find((computer) => String(computer.computerNumber || "") === number);
+    if (!existing) {
+      state.studentComputers.push({
+        id: uid(),
+        computerNumber: number,
+        computerName: String(item?.hostname || `PC-${number}`),
+        ipAddress: String(item?.remoteAddress || ""),
+        note: "Добавлено автоматически при подключении агента.",
+        status: "online"
+      });
+      changed = true;
+      continue;
+    }
+    let itemChanged = false;
+    const remoteAddress = String(item?.remoteAddress || "").trim();
+    const hostName = String(item?.hostname || "").trim();
+    if (remoteAddress && existing.ipAddress !== remoteAddress) {
+      existing.ipAddress = remoteAddress;
+      itemChanged = true;
+    }
+    if (hostName && (!existing.computerName || /^PC-\d+$/.test(String(existing.computerName || "")))) {
+      if (existing.computerName !== hostName) {
+        existing.computerName = hostName;
+        itemChanged = true;
+      }
+    }
+    if (itemChanged) changed = true;
+  }
+  return changed;
 }
 
 function renderStatusBar() {
@@ -1840,6 +2231,7 @@ function renderAll() {
   renderGradesJournal();
   renderSchedule();
   renderComputers();
+  renderSharedFoldersPage();
   renderHomeSchedule();
   renderHomeDashboard();
   renderProfilePage();
@@ -1849,6 +2241,34 @@ function renderAll() {
   renderStatusBar();
   updateThemeToggleButton();
   applyAccessControl();
+}
+
+function setupSharedFoldersHandlers() {
+  const toggle = document.getElementById("shared-folders-show-all");
+  const openHostBtn = document.getElementById("shared-folders-open-host");
+  if (toggle) {
+    toggle.addEventListener("change", () => {
+      if (!requirePermission("manage_computers")) {
+        toggle.checked = Boolean(state.sharedFoldersShowAll);
+        return;
+      }
+      state.sharedFoldersShowAll = Boolean(toggle.checked);
+      saveState();
+      renderSharedFoldersPage();
+      notifyUser("Настройки общих папок обновлены.", "success");
+    });
+  }
+  if (openHostBtn) {
+    openHostBtn.addEventListener("click", async () => {
+      if (!requirePermission("manage_computers")) return;
+      const response = await window.teachAxo?.openHostSharedFolder?.();
+      if (response?.ok) {
+        notifyUser("Окно общей папки открыто.", "success");
+      } else {
+        notifyUser(`Не удалось открыть общую папку: ${response?.message || "неизвестная ошибка"}.`, "warning");
+      }
+    });
+  }
 }
 
 function setupProfileHandlers() {
@@ -2301,13 +2721,20 @@ function setupScheduleHandlers() {
 function setupComputersHandlers() {
   const form = document.getElementById("student-computer-form");
   const numberFilterInput = document.getElementById("student-computer-number-filter");
-  const tableBody = document.getElementById("student-computers-table-body");
-  if (!form || !numberFilterInput || !tableBody) return;
+  const cardsWrap = document.getElementById("student-computers-cards");
+  const modal = document.getElementById("student-computer-modal");
+  if (!form || !numberFilterInput || !cardsWrap || !modal) return;
+  window.__teachaxoRemote = {
+    fetchFrame: (computerNumber) => requestComputerFrame(computerNumber),
+    sendInput: (computerNumber, payload) => sendComputerRemoteInput(computerNumber, payload)
+  };
 
   const syncConnections = async () => {
     try {
       const response = await window.teachAxo?.getComputerConnections?.();
       state.connectedComputers = Array.isArray(response?.items) ? response.items : [];
+      const changed = syncDiscoveredComputersIntoState();
+      if (changed) saveState();
       renderComputers();
     } catch (_error) {}
   };
@@ -2358,15 +2785,16 @@ function setupComputersHandlers() {
     renderComputers();
   });
 
-  tableBody.addEventListener("click", async (event) => {
+  const runComputerAction = async (event) => {
     if (!requirePermission("manage_computers")) return;
-    const target = event.target;
-    const computerId = target.dataset.computerId || target.dataset.deleteComputer;
+    const trigger = event.target.closest("[data-computer-action],[data-delete-computer]");
+    if (!trigger) return;
+    const computerId = trigger.dataset.computerId || trigger.dataset.deleteComputer;
     if (!computerId) return;
     const computer = state.studentComputers.find((item) => item.id === computerId);
     if (!computer) return;
 
-    const deleteId = target.dataset.deleteComputer;
+    const deleteId = trigger.dataset.deleteComputer;
     if (deleteId) {
       state.studentComputers = state.studentComputers.filter((item) => item.id !== deleteId);
       state.computerCommandLog = state.computerCommandLog.filter((entry) => entry.computerId !== deleteId);
@@ -2376,9 +2804,28 @@ function setupComputersHandlers() {
       return;
     }
 
-    const actionKey = target.dataset.computerAction;
+    const actionKey = trigger.dataset.computerAction;
     if (!actionKey) return;
+    if (actionKey === "screen_view") {
+      openComputerStreamWindow(computer, "view");
+      return;
+    }
+    if (actionKey === "remote_control") {
+      openComputerStreamWindow(computer, "control");
+      return;
+    }
+    if (actionKey === "disable_management") {
+      const confirmDisable = window.confirm(
+        "Отключить этот компьютер от управления? Агент завершится и будет удален из автозапуска."
+      );
+      if (!confirmDisable) {
+        notifyUser("Операция отменена.", "warning");
+        return;
+      }
+    }
     const actionLabels = {
+      check_connection: "Проверка подключения",
+      disable_management: "Отключение от управления",
       shutdown: "Выключение",
       restart: "Перезагрузка",
       remote_control: "Удаленное управление",
@@ -2390,10 +2837,15 @@ function setupComputersHandlers() {
       deny_app_launch: "Запрет запуска приложений",
       group_policy: "Редактор групповых политик"
     };
+    const payloadData = buildComputerActionPayload(actionKey);
+    if (payloadData === null) {
+      notifyUser("Команда отменена.", "warning");
+      return;
+    }
     const response = await window.teachAxo?.sendComputerCommand?.({
       computerNumber: computer.computerNumber,
       action: actionKey,
-      data: {}
+      data: payloadData
     });
     const ok = Boolean(response?.ok);
     state.computerCommandLog.push({
@@ -2412,13 +2864,53 @@ function setupComputersHandlers() {
         : `Команда «${actionLabels[actionKey] || actionKey}» не выполнена: ${response?.error || "нет ответа"}.`,
       ok ? "success" : "warning"
     );
+  };
+
+  cardsWrap.addEventListener("click", async (event) => {
+    const actionBtn = event.target.closest("[data-computer-action]");
+    if (actionBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      await runComputerAction(event);
+      return;
+    }
+    const card = event.target.closest("[data-open-computer-modal]");
+    if (!card) return;
+    state.studentComputersModalId = card.dataset.openComputerModal || "";
+    renderComputerModal();
+  });
+
+  modal.addEventListener("click", async (event) => {
+    const closeBtn = event.target.closest("[data-close-computer-modal]");
+    if (closeBtn) {
+      state.studentComputersModalId = "";
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+      return;
+    }
+    const actionBtn = event.target.closest("[data-computer-action],[data-delete-computer]");
+    if (!actionBtn) return;
+    await runComputerAction(event);
+    renderComputerModal();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (modal.classList.contains("hidden")) return;
+    state.studentComputersModalId = "";
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
   });
   window.teachAxo?.onComputerConnectionsChanged?.((payload) => {
     state.connectedComputers = Array.isArray(payload?.items) ? payload.items : [];
+    const changed = syncDiscoveredComputersIntoState();
+    if (changed) saveState();
     renderComputers();
+    scheduleSharedFolderSync();
   });
   syncServerConfig();
   syncConnections();
+  scheduleSharedFolderSync();
 }
 
 function setupAccessHandlers() {
@@ -3090,6 +3582,7 @@ async function init() {
   setupGradesHandlers();
   setupScheduleHandlers();
   setupComputersHandlers();
+  setupSharedFoldersHandlers();
   setupAccessHandlers();
   setupProfileHandlers();
   setupDatabaseSettingsHandlers();

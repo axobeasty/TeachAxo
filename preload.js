@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("teachAxo", {
   getComputerConnections: () => ipcRenderer.invoke("app:get-computer-connections"),
   getComputerServerConfig: () => ipcRenderer.invoke("app:get-computer-server-config"),
   sendComputerCommand: (payload) => ipcRenderer.invoke("app:send-computer-command", payload),
+  openHostSharedFolder: () => ipcRenderer.invoke("app:open-host-shared-folder"),
   minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
   toggleMaximizeWindow: () => ipcRenderer.invoke("window:toggle-maximize"),
   closeWindow: () => ipcRenderer.invoke("window:close"),

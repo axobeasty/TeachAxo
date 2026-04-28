@@ -1,0 +1,29 @@
+{
+  "appId": "com.teachaxo.agent",
+  "productName": "TeachAxo Agent",
+  "directories": {
+    "output": "dist-agent"
+  },
+  "files": [
+    "agent-main.js",
+    "package.json"
+  ],
+  "extraMetadata": {
+    "main": "agent-main.js",
+    "name": "teachaxo-agent"
+  },
+  "asar": true,
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ]
+  },
+  "nsis": {
+    "include": "build/agent-installer.nsh"
+  }
+}

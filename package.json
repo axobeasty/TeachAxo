@@ -1,11 +1,13 @@
 {
   "name": "teachaxo",
-  "version": "1.0.63",
+  "version": "1.0.77",
   "description": "Desktop app for student records, grading, and schedule management.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "agent:start": "node ./student-agent.js",
+    "agent:start": "electron ./agent-main.js",
+    "agent:start:cli": "node ./student-agent.js",
+    "agent:dist": "electron-builder --config agent-builder.json --win nsis",
     "dist": "electron-builder --win nsis",
     "update:archive": "node ./scripts/create-update-archive.js"
   },
@@ -30,7 +32,7 @@
   "build": {
     "appId": "com.teachaxo.app",
     "productName": "TeachAxo",
-    "buildVersion": "1.0.63.0",
+    "buildVersion": "1.0.77.0",
     "directories": {
       "output": "dist"
     },

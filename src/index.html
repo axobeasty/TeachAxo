@@ -76,6 +76,7 @@
             <a class="nav-item" data-section="grades"><i class="clipboard check icon"></i>Оценки</a>
             <a class="nav-item" data-section="schedule"><i class="calendar alternate icon"></i>Расписание</a>
             <a class="nav-item" data-section="computers"><i class="desktop icon"></i>Компьютеры</a>
+            <a class="nav-item" data-section="shared-folders"><i class="folder open icon"></i>Общие папки</a>
             <a class="nav-item" data-section="access"><i class="shield alternate icon"></i>Доступ</a>
             <a class="nav-item" data-section="profile"><i class="user circle icon"></i>Профиль</a>
             <a class="nav-item" data-section="settings"><i class="cog icon"></i>Настройки</a>
@@ -530,21 +531,7 @@
                     Подключите агент-клиент на ПК ученика к серверу TeachAxo. После подключения команды выполняются удаленно.
                   </div>
                   <div class="ui tiny message" id="student-computers-connection-hint"></div>
-                  <div class="access-table-wrap">
-                    <table class="ui celled compact table">
-                      <thead>
-                        <tr>
-                          <th>№</th>
-                          <th>Компьютер</th>
-                          <th>IP</th>
-                          <th>Хост</th>
-                          <th>Статус</th>
-                          <th>Действия</th>
-                        </tr>
-                      </thead>
-                      <tbody id="student-computers-table-body"></tbody>
-                    </table>
-                  </div>
+                  <div id="student-computers-cards" class="student-computers-cards-grid"></div>
                 </div>
                 <div class="ui segment">
                   <h3 class="ui header">Журнал команд</h3>
@@ -561,6 +548,41 @@
                       <tbody id="student-computers-log-body"></tbody>
                     </table>
                   </div>
+                </div>
+              </div>
+            </div>
+            <div id="student-computer-modal" class="students-class-modal hidden" aria-hidden="true">
+              <div class="students-class-modal-backdrop" data-close-computer-modal="1"></div>
+              <div class="students-class-modal-dialog">
+                <div class="students-class-modal-head">
+                  <h3 id="student-computer-modal-title">Компьютер</h3>
+                  <button type="button" class="ui icon button mini" data-close-computer-modal="1" aria-label="Закрыть">
+                    <i class="close icon"></i>
+                  </button>
+                </div>
+                <div class="students-class-modal-body">
+                  <div id="student-computer-modal-body"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section page-card" data-section-panel="shared-folders">
+            <div class="ui stackable grid">
+              <div class="ten wide column">
+                <h2 class="ui header">Общие папки</h2>
+                <p>Управление тем, какие классы отображаются в виртуальной общей папке на хосте и на ученических ПК.</p>
+                <div class="ui segment">
+                  <div class="ui form">
+                    <div class="field">
+                      <div class="ui checkbox">
+                        <input type="checkbox" id="shared-folders-show-all" />
+                        <label>Показывать все папки классов, даже если сейчас нет урока по расписанию</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="ui tiny message" id="shared-folders-status">Настройки не применялись.</div>
+                  <button type="button" class="ui button" id="shared-folders-open-host">Открыть общую папку на этом ПК</button>
                 </div>
               </div>
             </div>

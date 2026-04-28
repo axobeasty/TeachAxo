@@ -1759,6 +1759,80 @@ html[data-theme="dark"] .dashboard-stat[data-stat="schedule"] .dashboard-stat-ic
   background: var(--primary);
 }
 
+.student-computers-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.student-computer-card {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 12px;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.student-computer-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.16);
+}
+
+.student-computer-card.connected {
+  background: linear-gradient(135deg, #15803d, #22c55e);
+}
+
+.student-computer-card.disconnected {
+  background: linear-gradient(135deg, #b91c1c, #ef4444);
+}
+
+.student-computer-card-title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+
+.student-computer-card-address {
+  font-size: 14px;
+  opacity: 0.95;
+  margin-bottom: 10px;
+}
+
+.student-computer-card-status {
+  font-size: 12px;
+  margin-bottom: 10px;
+  opacity: 0.95;
+}
+
+.student-computer-card-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.student-computer-card-controls .ui.mini.button {
+  margin: 0 !important;
+}
+
+.student-computer-modal-meta {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 6px 10px;
+  margin-bottom: 12px;
+}
+
+.student-computer-modal-meta .label {
+  color: var(--muted);
+}
+
+.student-computer-modal-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 /* Dark theme — Semantic UI & surfaces (tables, segments, messages, inputs) */
 html[data-theme="dark"] .ui.table {
   background: var(--surface) !important;

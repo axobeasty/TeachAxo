@@ -5,7 +5,7 @@ const https = require("node:https");
 const os = require("node:os");
 const net = require("node:net");
 const crypto = require("node:crypto");
-const { spawn } = require("node:child_process");
+const { spawn, exec } = require("node:child_process");
 const { autoUpdater } = require("electron-updater");
 const AdmZip = require("adm-zip");
 const { DatabaseService } = require("./src/database");
@@ -41,6 +41,8 @@ let appUiConfig = {
   iconPath: "",
   theme: "system"
 };
+let hostSharedFolderWindow = null;
+const HOST_SHARED_FOLDER_SHORTCUT = "Общая папка.lnk";
 const COMPUTER_CONTROL_PORT = 46811;
 let computerControlServer = null;
 const connectedComputerSockets = new Map();
@@ -142,6 +144,167 @@ function notifyWindows(title, body) {
   } catch (_error) {
     // Ignore notification errors.
   }
+}
+
+function psEscape(value) {
+  return String(value || "").replace(/'/g, "''");
+}
+
+function hasOpenHostSharedFolderArg(argv) {
+  return Array.isArray(argv) && argv.some((arg) => String(arg || "").toLowerCase() === "--open-shared-folder-host");
+}
+
+function ensureHostSharedFolderShortcut() {
+  return new Promise((resolve) => {
+    const desktopPath = app.getPath("desktop");
+    const linkPath = path.join(desktopPath, HOST_SHARED_FOLDER_SHORTCUT);
+    const exePath = process.execPath;
+    const command = [
+      "$ws = New-Object -ComObject WScript.Shell;",
+      `$sc = $ws.CreateShortcut('${psEscape(linkPath)}');`,
+      `$sc.TargetPath = '${psEscape(exePath)}';`,
+      "$sc.Arguments = '--open-shared-folder-host';",
+      `$sc.WorkingDirectory = '${psEscape(path.dirname(exePath))}';`,
+      `$sc.IconLocation = '${psEscape(exePath)},0';`,
+      "$sc.Save();"
+    ].join(" ");
+    exec(`powershell -NoProfile -Command "${command}"`, { windowsHide: true }, () => resolve(linkPath));
+  });
+}
+
+function buildSharedFolderTreeFromState(snapshot) {
+  const classMap = new Map();
+  const classes = Array.isArray(snapshot?.classes) ? snapshot.classes : [];
+  const students = Array.isArray(snapshot?.students) ? snapshot.students : [];
+  classes
+    .map((item) => String(item?.name || "").trim())
+    .filter(Boolean)
+    .forEach((className) => {
+      if (!classMap.has(className)) classMap.set(className, new Set());
+    });
+  students.forEach((student) => {
+    const className = String(student?.className || "").trim();
+    const studentName = String(student?.name || "").trim();
+    if (!className || !studentName) return;
+    if (!classMap.has(className)) classMap.set(className, new Set());
+    classMap.get(className).add(studentName);
+  });
+  return [...classMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], "ru"))
+    .map(([className, names]) => ({
+      className,
+      students: [...names].sort((a, b) => a.localeCompare(b, "ru"))
+    }));
+}
+
+function buildSharedFolderScheduleFromState(snapshot) {
+  const schedule = Array.isArray(snapshot?.schedule) ? snapshot.schedule : [];
+  return schedule
+    .map((entry) => ({
+      day: String(entry?.day || "").trim(),
+      start: String(entry?.start || "").trim(),
+      end: String(entry?.end || "").trim(),
+      className: String(entry?.className || "").trim()
+    }))
+    .filter((entry) => entry.day && entry.start && entry.end && entry.className);
+}
+
+function sharedFolderHostHtml(classes, schedule, showAll) {
+  const classesJson = JSON.stringify(Array.isArray(classes) ? classes : []);
+  const scheduleJson = JSON.stringify(Array.isArray(schedule) ? schedule : []);
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Общая папка TeachAxo</title>
+<style>
+body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:#0f172a;color:#e5e7eb}
+.bar{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#111827;border-bottom:1px solid #334155}
+.title{font-size:16px;font-weight:600}
+.toolbar{display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid #334155}
+button{border:none;border-radius:8px;padding:6px 10px;background:#2563eb;color:#fff;cursor:pointer}
+button:disabled{opacity:.45;cursor:default}
+.path{font-size:13px;opacity:.85}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:14px}
+.item{background:#111827;border:1px solid #334155;border-radius:10px;padding:10px;cursor:pointer}
+.item:hover{border-color:#60a5fa}
+.name{font-weight:600}
+.sub{font-size:12px;opacity:.8;margin-top:4px}
+.empty{padding:16px 14px;opacity:.85}
+</style></head><body>
+<div class="bar"><div class="title">Общая папка TeachAxo (хост)</div></div>
+<div class="toolbar"><button id="back-btn" type="button">Назад</button><div class="path" id="path-node">Общая папка</div></div>
+<div id="content"></div>
+<script>
+const classes = ${classesJson};
+const schedule = ${scheduleJson};
+const showAll = ${showAll ? "true" : "false"};
+const content = document.getElementById("content");
+const pathNode = document.getElementById("path-node");
+const backBtn = document.getElementById("back-btn");
+function toMin(v){ const p=String(v||"").split(":"); const h=Number(p[0]); const m=Number(p[1]); if(!Number.isFinite(h)||!Number.isFinite(m)) return -1; return h*60+m; }
+function getDayName(now){ return ["Воскресенье","Понедельник","Вторник","Среда","Четверг","Пятница","Суббота"][now.getDay()] || ""; }
+function getAvailableClassNamesNow(){
+  const now = new Date();
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  const dayName = getDayName(now);
+  const set = new Set();
+  schedule.forEach((entry)=>{
+    if(String(entry.day||"") !== dayName) return;
+    const start = toMin(entry.start);
+    const end = toMin(entry.end);
+    if(start < 0 || end < 0) return;
+    if(nowMin >= start && nowMin < end) set.add(String(entry.className||""));
+  });
+  return set;
+}
+function esc(v){return String(v||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");}
+function renderClasses(){
+  backBtn.disabled = true;
+  pathNode.textContent = "Общая папка";
+  if(!classes.length){ content.innerHTML = '<div class="empty">Папки классов пока не созданы.</div>'; return; }
+  const allowed = getAvailableClassNamesNow();
+  const visible = showAll ? classes : classes.filter((item)=>allowed.has(String(item.className||"")));
+  if(!visible.length){ content.innerHTML = '<div class="empty">Сейчас по расписанию в кабинете нет активного класса.</div>'; return; }
+  content.innerHTML = '<div class="grid">' + visible.map((item, idx)=>'<div class="item" data-open-class="'+idx+'"><div class="name">📁 '+esc(item.className)+'</div><div class="sub">Учеников: '+((item.students||[]).length)+'</div></div>').join("") + '</div>';
+  window.__visibleClasses = visible;
+}
+function renderStudents(classItem){
+  backBtn.disabled = false;
+  pathNode.textContent = "Общая папка / " + String(classItem.className||"");
+  const students = Array.isArray(classItem.students)?classItem.students:[];
+  if(!students.length){ content.innerHTML = '<div class="empty">В этом классе нет папок учеников.</div>'; return; }
+  content.innerHTML = '<div class="grid">' + students.map((name)=>'<div class="item"><div class="name">📁 '+esc(name)+'</div><div class="sub">Личная папка ученика</div></div>').join("") + '</div>';
+}
+content.addEventListener("click",(event)=>{ const tile = event.target.closest("[data-open-class]"); if(!tile) return; const idx = Number(tile.getAttribute("data-open-class")); const visible = Array.isArray(window.__visibleClasses)?window.__visibleClasses:[]; if(!Number.isInteger(idx) || idx < 0 || idx >= visible.length) return; renderStudents(visible[idx]); });
+backBtn.addEventListener("click", renderClasses);
+renderClasses();
+</script></body></html>`;
+}
+
+async function openHostSharedFolderWindow() {
+  const snapshot = (await dbService?.getState?.()) || {};
+  const classes = buildSharedFolderTreeFromState(snapshot);
+  const schedule = buildSharedFolderScheduleFromState(snapshot);
+  const showAll = Boolean(snapshot?.sharedFoldersShowAll);
+  if (hostSharedFolderWindow && !hostSharedFolderWindow.isDestroyed()) {
+    hostSharedFolderWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(sharedFolderHostHtml(classes, schedule, showAll))}`);
+    hostSharedFolderWindow.show();
+    hostSharedFolderWindow.focus();
+    return;
+  }
+  hostSharedFolderWindow = new BrowserWindow({
+    width: 980,
+    height: 680,
+    minWidth: 760,
+    minHeight: 520,
+    title: "Общая папка TeachAxo",
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+  hostSharedFolderWindow.on("closed", () => {
+    hostSharedFolderWindow = null;
+  });
+  hostSharedFolderWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(sharedFolderHostHtml(classes, schedule, showAll))}`);
 }
 
 function getConnectedComputersSnapshot() {
@@ -945,6 +1108,14 @@ function registerDatabaseIpcHandlers() {
   ipcMain.handle("app:get-ui-config", async () => appUiConfig);
   ipcMain.handle("app:get-computer-server-config", async () => ({ port: COMPUTER_CONTROL_PORT }));
   ipcMain.handle("app:get-computer-connections", async () => ({ items: getConnectedComputersSnapshot() }));
+  ipcMain.handle("app:open-host-shared-folder", async () => {
+    try {
+      await openHostSharedFolderWindow();
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, message: error?.message || "Не удалось открыть общую папку." };
+    }
+  });
   ipcMain.handle("app:send-computer-command", async (_event, payload) => {
     const computerNumber = String(payload?.computerNumber || "").trim();
     const action = String(payload?.action || "").trim();
@@ -964,11 +1135,6 @@ function registerDatabaseIpcHandlers() {
       data,
       timestamp: new Date().toISOString()
     };
-    try {
-      target.socket.write(`${JSON.stringify(packet)}\n`);
-    } catch (error) {
-      return { ok: false, error: `Не удалось отправить команду: ${error.message}` };
-    }
     const result = await new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         pendingComputerCommands.delete(commandId);
@@ -980,6 +1146,13 @@ function registerDatabaseIpcHandlers() {
         resolve,
         reject
       });
+      try {
+        target.socket.write(`${JSON.stringify(packet)}\n`);
+      } catch (error) {
+        clearTimeout(timeoutId);
+        pendingComputerCommands.delete(commandId);
+        reject(new Error(`Не удалось отправить команду: ${error.message}`));
+      }
     }).catch((error) => ({ ok: false, error: error.message }));
     return result;
   });
@@ -1051,11 +1224,17 @@ app.whenReady().then(async () => {
     startDbHealthMonitor();
     registerDatabaseIpcHandlers();
     startComputerControlServer();
+    ensureHostSharedFolderShortcut().catch(() => {});
     nativeTheme.on("updated", () => {
       if (normalizeUiTheme(appUiConfig.theme) !== "system") return;
       broadcastUpdaterAppearance();
     });
     setupAutoUpdateFlow();
+    if (hasOpenHostSharedFolderArg(process.argv)) {
+      openHostSharedFolderWindow().catch((error) => {
+        console.error("Не удалось открыть общую папку на хосте:", error);
+      });
+    }
   } catch (error) {
     console.error("DB init failed:", error);
     app.quit();
